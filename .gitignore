@@ -1,0 +1,44 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local env vars for services (keep *.env.example)
+.env
+*.local.env
+.claude/
+**/.claude/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Runtime data volumes (compose bind mounts)
+data/
+!data/.gitkeep
+
+# Model weights and experiment artifacts
+*.pt
+*.pth
+*.onnx
+*.engine
+weights/
+training/runs/
+training/.ipynb_checkpoints/
+.ipynb_checkpoints/
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# OS junk
+.DS_Store
