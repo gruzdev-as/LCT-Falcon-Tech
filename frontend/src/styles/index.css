@@ -1,1 +1,65 @@
 @import "tailwindcss";
+
+/* Configured in CSS: there is no tailwind.config.js and no postcss.config.js.
+   Use these semantic names, never raw palette classes like violet-600. */
+@theme {
+  --color-brand-50: oklch(0.969 0.016 293.756);
+  --color-brand-100: oklch(0.943 0.029 294.588);
+  --color-brand-200: oklch(0.894 0.057 293.283);
+  --color-brand-300: oklch(0.811 0.111 293.571);
+  --color-brand-400: oklch(0.702 0.183 293.541);
+  --color-brand-500: oklch(0.606 0.25 292.717);
+  --color-brand-600: oklch(0.541 0.281 293.009);
+  --color-brand-700: oklch(0.491 0.27 292.581);
+  --color-brand-800: oklch(0.432 0.232 292.759);
+  --color-brand-900: oklch(0.38 0.189 293.745);
+  --color-brand-950: oklch(0.283 0.141 291.089);
+
+  /* Violet-tinted neutrals (hue 285): pure grey reads as dirty next to the accent. */
+  --color-surface-950: oklch(0.145 0.016 285);
+  --color-surface-900: oklch(0.192 0.019 285);
+  --color-surface-850: oklch(0.225 0.021 285);
+  --color-surface-800: oklch(0.262 0.022 285);
+  --color-surface-700: oklch(0.33 0.023 285);
+  --color-surface-600: oklch(0.42 0.022 285);
+
+
+  --color-ink-100: oklch(0.97 0.006 285);
+  --color-ink-300: oklch(0.85 0.011 285);
+  --color-ink-500: oklch(0.68 0.014 285);
+  --color-ink-600: oklch(0.58 0.014 285);
+
+  /* Only these three, so a state never invents its own colour. */
+  --color-ok-400: oklch(0.77 0.16 154);
+  --color-warn-400: oklch(0.82 0.15 85);
+  --color-danger-400: oklch(0.71 0.18 25);
+
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark; /* so form controls and scrollbars follow */
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-surface-950);
+    color: var(--color-ink-100);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* v4 defaults border-color to currentColor; put it back to a real edge. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-surface-700);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-400);
+    outline-offset: 2px;
+  }
+}
