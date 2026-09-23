@@ -6,6 +6,7 @@ from common.src.configs.constants import INFERENCE_GROUP, TASK_STREAM
 type StreamEntry = tuple[str, dict[str, str]]
 type StreamReply = list[tuple[str, list[StreamEntry]]]
 
+
 @dataclass(frozen=True)
 class RedisConfig:
     """Configure Redis connection.
@@ -18,6 +19,9 @@ class RedisConfig:
     port: int = field(default_factory=lambda: int(os.getenv("REDIS_PORT", "6379")))
     db: int = field(default_factory=lambda: int(os.getenv("REDIS_DB", "0")))
     password: str | None = field(default_factory=lambda: os.getenv("REDIS_PASSWORD") or None)
+    # Must stay above the longest blocking stream read (INFERENCE_BLOCK_MS), or an
+    # idle XREADGROUP times out on the client before Redis answers with nothing
+    socket_timeout: float = field(default_factory=lambda: float(os.getenv("REDIS_SOCKET_TIMEOUT", "10")))
     decode_responses: bool = True
 
 
