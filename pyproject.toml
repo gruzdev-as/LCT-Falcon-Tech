@@ -61,6 +61,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "httpx>=0.28",
     "anyio>=4.6",
+    "fakeredis>=2.26",
 ]
 
 [tool.ruff]
