@@ -92,6 +92,40 @@ services:
       timeout: 5s
       retries: 5
 
+  # Stream worker: no ports, scales horizontally within one consumer group.
+  # Liveness comes from the heartbeat HEALTHCHECK baked into the image.
+  inference:
+    build:
+      context: .
+      dockerfile: inference/deploy/Dockerfile
+      args:
+        DEPS_GROUP: ${INFERENCE_DEPS_GROUP:-common}
+    deploy:
+      replicas: ${INFERENCE_REPLICAS:-2}
+    # Enough to finish the task in flight after SIGTERM
+    stop_grace_period: 30s
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      S3_ENDPOINT_URL: http://rustfs:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      S3_BUCKET: ${S3_BUCKET:-falcon-images}
+      INFERENCE_EMBEDDER: ${INFERENCE_EMBEDDER:-stub}
+      INFERENCE_EMBEDDING_DIM: ${INFERENCE_EMBEDDING_DIM:-512}
+      INFERENCE_REJECT_THRESHOLD: ${INFERENCE_REJECT_THRESHOLD:-0.5}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
