@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+.gitmodules
+.github
+
+# Training submodule — separate repo, not deployed, carries LFS weights
+training/
+
+# Local bind mounts for compose volumes
+data/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Secrets and local config
+.env
+*.env
+!.env.example
+
+# Docs and editor junk
+README.md
+.claude/
+.vscode/
+.idea/
+.DS_Store

@@ -67,7 +67,7 @@ dev = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-exclude = ["__pycache__", ".git", ".venv", "venv", ".pytype", "build", "dist", "training/notebooks"]
+exclude = ["__pycache__", ".git", ".venv", "venv", ".pytype", "build", "dist", "training"]
 show-fixes = true
 
 [tool.ruff.lint]

@@ -1,0 +1,3 @@
+[submodule "training"]
+	path = training
+	url = git@github.com:l1ghtsource/Vehicle-ReID.git
