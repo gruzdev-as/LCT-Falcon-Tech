@@ -1,0 +1,79 @@
+import pytest
+from qdrant_client import AsyncQdrantClient
+
+from common.src.configs.schemas import TaskStatus
+from inference.src.models.stub import StubEmbedder
+from inference.src.processor import Processor
+from inference.tests.helpers import GalleryAdd, make_image, make_task
+
+
+@pytest.fixture
+def processor(embedder: StubEmbedder, qdrant: AsyncQdrantClient, objects: dict[str, bytes]) -> Processor:
+    return Processor(embedder=embedder, reject_threshold=0.5)
+
+
+async def test_finds_the_same_vehicle(processor: Processor, objects: dict[str, bytes], gallery_add: GalleryAdd) -> None:
+    image = make_image(1)
+    match_id = await gallery_add(image, vehicle_id="car-1")
+    await gallery_add(make_image(2))
+    objects["queries/q.png"] = image
+
+    result = await processor.process(make_task())
+
+    assert result.status == TaskStatus.DONE
+    assert not result.rejected
+    assert result.top_score == pytest.approx(1.0, abs=1e-5)
+    assert result.candidates[0].image_id == match_id
+    assert result.candidates[0].vehicle_id == "car-1"
+    assert result.candidates[0].image_url.startswith("http://s3.test/gallery/")
+    assert result.model_name == "stub"
+
+
+async def test_rejects_when_nothing_is_close(
+    processor: Processor, objects: dict[str, bytes], gallery_add: GalleryAdd
+) -> None:
+    await gallery_add(make_image(2))
+    objects["queries/q.png"] = make_image(1)
+
+    result = await processor.process(make_task())
+
+    assert result.status == TaskStatus.DONE
+    assert result.rejected
+    assert result.candidates == []
+
+
+async def test_rejects_on_an_empty_gallery(processor: Processor, objects: dict[str, bytes]) -> None:
+    objects["queries/q.png"] = make_image(1)
+    result = await processor.process(make_task())
+    assert result.rejected
+    assert result.top_score is None
+
+
+async def test_returns_at_most_top_k(processor: Processor, objects: dict[str, bytes], gallery_add: GalleryAdd) -> None:
+    image = make_image(1)
+    for _ in range(4):
+        await gallery_add(image)
+    objects["queries/q.png"] = image
+
+    result = await processor.process(make_task(top_k=2))
+
+    assert [c.rank for c in result.candidates] == [1, 2]
+
+
+async def test_fails_an_undecodable_image(processor: Processor, objects: dict[str, bytes]) -> None:
+    objects["queries/q.png"] = b"not an image"
+    result = await processor.process(make_task())
+    assert result.status == TaskStatus.FAILED
+    assert result.error == "stored image cannot be decoded"
+
+
+async def test_fails_a_missing_image(processor: Processor) -> None:
+    result = await processor.process(make_task("queries/missing.png"))
+    assert result.status == TaskStatus.FAILED
+    assert "does not exist" in result.error
+
+
+async def test_fails_a_box_that_degenerates_on_the_image(processor: Processor, objects: dict[str, bytes]) -> None:
+    objects["queries/q.png"] = make_image(1, size=(20, 20))  # BOX starts at (10, 10): 10px left
+    result = await processor.process(make_task())
+    assert result.status == TaskStatus.FAILED

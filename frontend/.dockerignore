@@ -1,0 +1,9 @@
+node_modules
+dist
+.vite
+.claude
+tests
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
