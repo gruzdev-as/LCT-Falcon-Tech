@@ -9,12 +9,13 @@ from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from common.src.configs.constants import QUERY_PREFIX
-from common.src.exceptions import StorageError
+from common.src.exceptions import NotFoundError, StorageError
 from common.src.storage.config import StorageConfig
 
 logger = logging.getLogger(__name__)
 
 _BOTO_CONFIG = Config(signature_version="s3v4", s3={"addressing_style": "path"})
+_MISSING_KEY_CODES = frozenset({"NoSuchKey", "404"})
 
 
 @lru_cache
@@ -73,13 +74,24 @@ async def save(key: str, data: bytes, content_type: str = "image/jpeg") -> str:
 
 
 async def load(key: str) -> bytes:
-    """Read an image back."""
+    """Read an image back.
+
+    Raises:
+        NotFoundError: there is no object under this key.
+        StorageError: the store itself is unreachable or failed.
+    """
     config = get_config()
     client = _client(config.endpoint_url)
     try:
         response = await anyio.to_thread.run_sync(lambda: client.get_object(Bucket=config.bucket, Key=key))
         return await anyio.to_thread.run_sync(response["Body"].read)
-    except (ClientError, BotoCoreError) as exc:
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") in _MISSING_KEY_CODES:
+            msg = f"image {key} does not exist"
+            raise NotFoundError(msg) from exc
+        msg = f"failed to read image {key}"
+        raise StorageError(msg) from exc
+    except BotoCoreError as exc:
         msg = f"failed to read image {key}"
         raise StorageError(msg) from exc
 
