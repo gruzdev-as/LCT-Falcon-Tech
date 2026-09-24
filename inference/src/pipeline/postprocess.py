@@ -53,7 +53,7 @@ def rank_candidates(
         image_path = payload.get("image_path")
         candidates.append(
             Candidate(
-                image_id=str(point.id),
+                image_id=str(payload.get("image_id") or point.id),
                 score=to_similarity(point.score),
                 rank=rank,
                 image_path=image_path,

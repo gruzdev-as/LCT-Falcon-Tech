@@ -8,7 +8,7 @@ dependencies = []
 
 [tool.uv]
 package = false
-default-groups = ["dev", "common", "backend"]
+default-groups = ["dev", "common", "backend", "init"]
 
 [dependency-groups]
 common = [
@@ -22,6 +22,8 @@ common = [
     "boto3>=1.35",
     "pillow>=11.0",
     "numpy>=2.1",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
 ]
 
 backend = [
@@ -29,9 +31,11 @@ backend = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "python-multipart>=0.0.17",
-    "sqlalchemy[asyncio]>=2.0.36",
-    "asyncpg>=0.30",
-    "alembic>=1.14",
+    "httpx>=0.28",
+]
+
+init = [
+    { include-group = "common" },
     "httpx>=0.28",
 ]
 
@@ -96,16 +100,16 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"*/tests/*" = ["S101", "D103", "D101"]  # assert и docstrings в тестах не нужны
-"training/*" = ["D", "ERA", "S"]        # эксперименты живут по своим правилам
-"backend/app/routers/*" = ["D301"]      # для опенапи
+"*/tests/*" = ["S101", "D103", "D101", "TRY003"]  # assert, docstrings и текст ошибок в тестах не нужны
+"training/*" = ["D", "ERA", "S"]                  # эксперименты живут по своим правилам
+"backend/app/routers/*" = ["D301"]                # для опенапи
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.isort]
 # Top-level service packages, imported from the repo root.
-known-first-party = ["backend", "common", "inference"]
+known-first-party = ["backend", "common", "inference", "init"]
 
 [tool.ruff.format]
 preview = true
@@ -114,6 +118,9 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.pytest.ini_options]
-testpaths = ["backend/tests", "inference/tests", "common/tests"]
+testpaths = ["backend/tests", "inference/tests", "init/tests", "common/tests"]
 asyncio_mode = "auto"
 pythonpath = ["."]
+markers = [
+    "integration: needs a real Postgres; skipped unless POSTGRES_TEST_DSN is set",
+]

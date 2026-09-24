@@ -46,20 +46,6 @@ wheels = [
 ]
 
 [[package]]
-name = "alembic"
-version = "1.20.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mako" },
-    { name = "sqlalchemy" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/aa/02910bdb8e2f1444f6654d5b296cd827d126f82209050ee7b1000f92ac4b/alembic-1.20.0.tar.gz", hash = "sha256:db505480647bc60386c5369402f4a57a506b7539c9e9ef5e270d45cbbe4939bf", size = 2093272, upload-time = "2026-09-11T19:09:11.126Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/27/78a89b55b0904d222183164e079b4ca56208e94eff1d35ad1f1ad5be9b06/alembic-1.20.0-py3-none-any.whl", hash = "sha256:77eb101048d95f982c0353e9233404889dcd7a6fc244c107836c0e2fc9cf7d9d", size = 268719, upload-time = "2026-09-11T19:09:12.88Z" },
-]
-
-[[package]]
 name = "annotated-doc"
 version = "0.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1641,7 +1627,6 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 backend = [
-    { name = "alembic" },
     { name = "anyio" },
     { name = "asyncpg" },
     { name = "boto3" },
@@ -1661,6 +1646,7 @@ backend = [
 ]
 common = [
     { name = "anyio" },
+    { name = "asyncpg" },
     { name = "boto3" },
     { name = "numpy" },
     { name = "orjson" },
@@ -1669,6 +1655,7 @@ common = [
     { name = "pydantic-settings" },
     { name = "qdrant-client" },
     { name = "redis" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
 ]
 dev = [
@@ -1681,6 +1668,7 @@ dev = [
 ]
 inference = [
     { name = "anyio" },
+    { name = "asyncpg" },
     { name = "boto3" },
     { name = "fastapi" },
     { name = "numpy" },
@@ -1691,15 +1679,32 @@ inference = [
     { name = "pydantic-settings" },
     { name = "qdrant-client" },
     { name = "redis" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "timm" },
     { name = "torch" },
     { name = "torchvision" },
     { name = "uvicorn", extra = ["standard"] },
 ]
+init = [
+    { name = "anyio" },
+    { name = "asyncpg" },
+    { name = "boto3" },
+    { name = "httpx" },
+    { name = "numpy" },
+    { name = "orjson" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "qdrant-client" },
+    { name = "redis" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "structlog" },
+]
 training = [
     { name = "albumentations" },
     { name = "anyio" },
+    { name = "asyncpg" },
     { name = "boto3" },
     { name = "fastapi" },
     { name = "jupyterlab" },
@@ -1714,6 +1719,7 @@ training = [
     { name = "qdrant-client" },
     { name = "redis" },
     { name = "scikit-learn" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "timm" },
     { name = "torch" },
@@ -1726,7 +1732,6 @@ training = [
 
 [package.metadata.requires-dev]
 backend = [
-    { name = "alembic", specifier = ">=1.14" },
     { name = "anyio", specifier = ">=4.6" },
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "boto3", specifier = ">=1.35" },
@@ -1746,6 +1751,7 @@ backend = [
 ]
 common = [
     { name = "anyio", specifier = ">=4.6" },
+    { name = "asyncpg", specifier = ">=0.30" },
     { name = "boto3", specifier = ">=1.35" },
     { name = "numpy", specifier = ">=2.1" },
     { name = "orjson", specifier = ">=3.10" },
@@ -1754,6 +1760,7 @@ common = [
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "qdrant-client", specifier = ">=1.12" },
     { name = "redis", specifier = ">=5.2" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.4" },
 ]
 dev = [
@@ -1766,6 +1773,7 @@ dev = [
 ]
 inference = [
     { name = "anyio", specifier = ">=4.6" },
+    { name = "asyncpg", specifier = ">=0.30" },
     { name = "boto3", specifier = ">=1.35" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "numpy", specifier = ">=2.1" },
@@ -1776,15 +1784,32 @@ inference = [
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "qdrant-client", specifier = ">=1.12" },
     { name = "redis", specifier = ">=5.2" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.4" },
     { name = "timm", specifier = ">=1.0.11" },
     { name = "torch", specifier = ">=2.5" },
     { name = "torchvision", specifier = ">=0.20" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
+init = [
+    { name = "anyio", specifier = ">=4.6" },
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "boto3", specifier = ">=1.35" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "numpy", specifier = ">=2.1" },
+    { name = "orjson", specifier = ">=3.10" },
+    { name = "pillow", specifier = ">=11.0" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pydantic-settings", specifier = ">=2.6" },
+    { name = "qdrant-client", specifier = ">=1.12" },
+    { name = "redis", specifier = ">=5.2" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
+    { name = "structlog", specifier = ">=24.4" },
+]
 training = [
     { name = "albumentations", specifier = ">=1.4" },
     { name = "anyio", specifier = ">=4.6" },
+    { name = "asyncpg", specifier = ">=0.30" },
     { name = "boto3", specifier = ">=1.35" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "jupyterlab", specifier = ">=4.3" },
@@ -1799,24 +1824,13 @@ training = [
     { name = "qdrant-client", specifier = ">=1.12" },
     { name = "redis", specifier = ">=5.2" },
     { name = "scikit-learn", specifier = ">=1.5" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.4" },
     { name = "timm", specifier = ">=1.0.11" },
     { name = "torch", specifier = ">=2.5" },
     { name = "torchvision", specifier = ">=0.20" },
     { name = "tqdm", specifier = ">=4.67" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
-]
-
-[[package]]
-name = "mako"
-version = "1.4.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markupsafe" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2a/12/b5fa2353e2754cd67fb9f83793fa48ff42c213a5da7e719869d2301f6ab8/mako-1.4.1.tar.gz", hash = "sha256:d7904710b662996425a21627710c4777c45053146942cf8a7aebf757c92b8c27", size = 410165, upload-time = "2026-08-05T06:10:56.611Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/54/12ed58d458474aaab5c3d180173e745a4fe131bb330370596876d19ff60f/mako-1.4.1-py3-none-any.whl", hash = "sha256:a359d9a94a541213958742b2698d0a7757bb83551767bc468a74b9905aba9617", size = 80010, upload-time = "2026-08-05T06:10:58.248Z" },
 ]
 
 [[package]]

@@ -14,6 +14,23 @@ services:
       timeout: 3s
       retries: 10
 
+  postgres:
+    image: postgres:17.6-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-falcon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-falcon}
+      POSTGRES_DB: ${POSTGRES_DB:-falcon}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-falcon} -d ${POSTGRES_DB:-falcon}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   qdrant:
     image: qdrant/qdrant:v1.19.1
     ports:
@@ -66,6 +83,44 @@ services:
       retries: 5
       start_period: 40s
 
+  init:
+    build:
+      context: .
+      dockerfile: init/deploy/Dockerfile
+    restart: "no"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-falcon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-falcon}
+      POSTGRES_DB: ${POSTGRES_DB:-falcon}
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      S3_ENDPOINT_URL: http://rustfs:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      S3_BUCKET: ${S3_BUCKET:-falcon-images}
+      INIT_ARTIFACTS_DIR: /artifacts
+      INIT_WEIGHTS_DIR: /weights
+      INIT_MODEL_URL: ${INIT_MODEL_URL:-}
+      INIT_MODEL_SHA256: ${INIT_MODEL_SHA256:-}
+      INIT_IMAGES_URL: ${INIT_IMAGES_URL:-}
+      INIT_IMAGES_SHA256: ${INIT_IMAGES_SHA256:-}
+      INIT_VECTORS_URL: ${INIT_VECTORS_URL:-}
+      INIT_VECTORS_SHA256: ${INIT_VECTORS_SHA256:-}
+      INIT_FORCE: ${INIT_FORCE:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data/gallery:/artifacts
+      - ./data/weights:/weights
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+
   backend:
     build:
       context: .
@@ -75,6 +130,11 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-falcon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-falcon}
+      POSTGRES_DB: ${POSTGRES_DB:-falcon}
       S3_ENDPOINT_URL: http://rustfs:9000
       S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
@@ -86,6 +146,8 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 10s
@@ -118,6 +180,8 @@ services:
       INFERENCE_EMBEDDING_DIM: ${INFERENCE_EMBEDDING_DIM:-512}
       INFERENCE_REJECT_THRESHOLD: ${INFERENCE_REJECT_THRESHOLD:-0.5}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data/weights:/weights:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -125,6 +189,8 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
 
   frontend:
     build:

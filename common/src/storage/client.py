@@ -96,6 +96,29 @@ async def load(key: str) -> bytes:
         raise StorageError(msg) from exc
 
 
+async def list_keys(prefix: str) -> set[str]:
+    """Return every object key under a prefix.
+
+    Raises:
+        StorageError: the store is unreachable or the listing failed.
+    """
+    return await anyio.to_thread.run_sync(_list_keys_sync, prefix)
+
+
+def _list_keys_sync(prefix: str) -> set[str]:
+    config = get_config()
+    client = _client(config.endpoint_url)
+    keys: set[str] = set()
+    try:
+        paginator = client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=config.bucket, Prefix=prefix):
+            keys.update(item["Key"] for item in page.get("Contents", []))
+    except (ClientError, BotoCoreError) as exc:
+        msg = f"failed to list objects under {prefix}"
+        raise StorageError(msg) from exc
+    return keys
+
+
 def url_for(key: str, ttl: int | None = None) -> str:
     """Build a temporary link the frontend can load the image from."""
     config = get_config()
