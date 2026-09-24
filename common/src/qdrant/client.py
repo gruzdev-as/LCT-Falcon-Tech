@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import asdict
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, ScoredPoint, VectorParams
+from qdrant_client.models import Distance, PointStruct, ScoredPoint, VectorParams
 
 from common.src.exceptions import StorageError
 from common.src.qdrant.config import QdrantConfig
@@ -50,6 +50,29 @@ async def ensure_collection(name: str, dim: int) -> None:
     if size != dim:
         msg = f"collection {name} holds {size}-dim vectors, the model produces {dim}"
         raise StorageError(msg, details={"collection": name, "expected": dim, "actual": size})
+
+
+async def recreate_collection(name: str, dim: int) -> None:
+    """Drop the collection and build it empty again."""
+    client = get_qdrant()
+    await client.delete_collection(name)
+    await client.create_collection(name, vectors_config=VectorParams(size=dim, distance=Distance.COSINE))
+    logger.info("Recreated Qdrant collection %s (dim=%d)", name, dim)
+
+
+async def count_points(collection: str) -> int:
+    """Return how many points the collection holds, or 0 if it does not exist."""
+    client = get_qdrant()
+    if not await client.collection_exists(collection):
+        return 0
+    return (await client.count(collection, exact=True)).count
+
+
+async def upsert_points(collection: str, points: Sequence[PointStruct]) -> None:
+    """Write one batch of points, waiting until they are searchable."""
+    if not points:
+        return
+    await get_qdrant().upsert(collection, list(points), wait=True)
 
 
 async def search(collection: str, vector: Sequence[float], limit: int) -> list[ScoredPoint]:
