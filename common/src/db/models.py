@@ -35,6 +35,14 @@ class GalleryImage(Base):
     width: Mapped[int | None] = mapped_column(Integer, default=None)
     height: Mapped[int | None] = mapped_column(Integer, default=None)
 
+    bbox_x: Mapped[float | None] = mapped_column(Float, default=None)
+    bbox_y: Mapped[float | None] = mapped_column(Float, default=None)
+    bbox_width: Mapped[float | None] = mapped_column(Float, default=None)
+    bbox_height: Mapped[float | None] = mapped_column(Float, default=None)
+    """The vehicle inside the stored frame: absolute px, xywh from the top-left. NULL means
+    the whole frame is the vehicle. Mirrors what the Qdrant payload carries, because the
+    request path reads the payload and never this table."""
+
     bundle_version: Mapped[str] = mapped_column(String(128))
     """Which artifact bundle indexed this row; lets a stale gallery be spotted."""
 

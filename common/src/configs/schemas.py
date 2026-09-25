@@ -43,18 +43,7 @@ class BBox(BaseModel):
         return cls(x=x1, y=y1, width=x2 - x1, height=y2 - y1)
 
     def clamp(self, image_width: int, image_height: int) -> "BBox":
-        """Trim the box to the image bounds.
-
-        Args:
-            image_width: real width of the decoded image, px.
-            image_height: real height of the decoded image, px.
-
-        Returns:
-            A box guaranteed to lie inside the image.
-
-        Raises:
-            ValueError: the box degenerates once trimmed.
-        """
+        """Trim the box to the image bounds."""
         x1 = max(0.0, min(self.x, image_width - 1))
         y1 = max(0.0, min(self.y, image_height - 1))
         x2 = max(x1 + 1, min(self.x2, float(image_width)))
@@ -94,6 +83,7 @@ class Candidate(BaseModel):
     rank: int = Field(ge=1)
     image_path: str | None = None
     image_url: str | None = Field(default=None, description="URL the frontend can load the original from.")
+    bbox: BBox | None = Field(default=None, description="BBox of the candidate's car")
     vehicle_id: str | None = None
     camera_id: str | None = None
 
