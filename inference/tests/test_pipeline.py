@@ -18,7 +18,7 @@ def _sign(key: str) -> str:
     return f"http://s3.test/{key}"
 
 
-def _point(point_id: int, score: float, **payload: str) -> ScoredPoint:
+def _point(point_id: int, score: float, **payload: object) -> ScoredPoint:
     return ScoredPoint(id=point_id, version=0, score=score, payload=payload)
 
 
@@ -98,3 +98,17 @@ def test_rank_keeps_scores_in_unit_range() -> None:
     candidates, _, _ = rank_candidates([_point(1, 1.0000001), _point(2, -0.2)], threshold=0.0, sign_url=_sign)
     assert [c.score for c in candidates] == [1.0, 0.0]
 
+
+def test_rank_carries_the_gallery_bbox_through() -> None:
+    """The gallery stores whole frames, so a candidate without its box cannot be shown."""
+    hit = _point(1, 0.9, image_path="gallery/1.png", bbox={"x": 10, "y": 20, "width": 30, "height": 40})
+
+    candidates, _, _ = rank_candidates([hit], threshold=0.5, sign_url=_sign)
+
+    assert candidates[0].bbox == BBox(x=10, y=20, width=30, height=40)
+
+
+def test_rank_accepts_a_gallery_indexed_without_boxes() -> None:
+    candidates, _, _ = rank_candidates([_point(1, 0.9, image_path="gallery/1.png")], threshold=0.5, sign_url=_sign)
+
+    assert candidates[0].bbox is None

@@ -3,7 +3,7 @@ from collections.abc import Callable, Sequence
 import numpy as np
 from qdrant_client.models import ScoredPoint
 
-from common.src.configs.schemas import Candidate
+from common.src.configs.schemas import BBox, Candidate
 
 # Guards the division for an all-zero vector, which then stays zero and matches nothing
 _EPS = 1e-12
@@ -58,6 +58,7 @@ def rank_candidates(
     for rank, point in enumerate(ordered, start=1):
         payload = point.payload or {}
         image_path = payload.get("image_path")
+        bbox = payload.get("bbox")
         candidates.append(
             Candidate(
                 image_id=str(payload.get("image_id") or point.id),
@@ -65,6 +66,8 @@ def rank_candidates(
                 rank=rank,
                 image_path=image_path,
                 image_url=sign_url(image_path) if image_path else None,
+                # A gallery indexed before the box existed simply has no key here.
+                bbox=BBox(**bbox) if bbox else None,
                 vehicle_id=payload.get("vehicle_id"),
                 camera_id=payload.get("camera_id"),
             )
