@@ -59,6 +59,33 @@ export function toRenderedRect(
   };
 }
 
+/**
+ * The region of the ORIGINAL a card should show, in original pixels.
+ *
+ * The gallery stores whole frames, so a card has to crop. The box is padded out to the
+ * tile's aspect ratio rather than stretched into it: a car keeps its proportions, and
+ * the tile fills with the pixels around the car instead of bars.
+ */
+export function cropWindow(box: BBox, natural: Size, aspect: number): BBox {
+  let width = box.width;
+  let height = box.height;
+  if (width / height < aspect) width = height * aspect;
+  else height = width / aspect;
+
+  // A box near an edge can ask for more than the frame holds. Shrink both sides by the
+  // same factor, so the ratio survives and the window still fits.
+  const scale = Math.min(1, natural.width / width, natural.height / height);
+  width *= scale;
+  height *= scale;
+
+  return {
+    width,
+    height,
+    x: clamp(box.x + box.width / 2 - width / 2, 0, natural.width - width),
+    y: clamp(box.y + box.height / 2 - height / 2, 0, natural.height - height),
+  };
+}
+
 /** Keep a box inside the frame without changing its size. */
 export function clampBoxInside(box: BBox, natural: Size): BBox {
   const width = Math.min(box.width, natural.width);

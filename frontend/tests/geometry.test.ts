@@ -4,6 +4,7 @@ import {
   applyResize,
   boxFromPoints,
   clampBoxInside,
+  cropWindow,
   isBoxValid,
   toOriginal,
   toRenderedRect,
@@ -161,5 +162,44 @@ describe("clampBoxInside", () => {
       width: 1000,
       height: 800,
     });
+  });
+});
+
+describe("cropWindow", () => {
+  const natural = { width: 1000, height: 1000 };
+  const ASPECT = 4 / 3;
+
+  it("pads a tall box sideways instead of stretching it", () => {
+    const view = cropWindow({ x: 400, y: 400, width: 100, height: 200 }, natural, ASPECT);
+
+    expect(view.height).toBe(200);
+    expect(view.width / view.height).toBeCloseTo(ASPECT);
+    // The car stays centred in what the tile shows.
+    expect(view.x + view.width / 2).toBeCloseTo(450);
+  });
+
+  it("pads a wide box vertically", () => {
+    const view = cropWindow({ x: 100, y: 500, width: 400, height: 100 }, natural, ASPECT);
+
+    expect(view.width).toBe(400);
+    expect(view.height).toBeCloseTo(300);
+  });
+
+  it("slides a window at the edge inside the frame rather than shrinking it", () => {
+    const view = cropWindow({ x: 0, y: 0, width: 400, height: 100 }, natural, ASPECT);
+
+    expect(view.x).toBe(0);
+    expect(view.y).toBe(0);
+    expect(view.width).toBe(400);
+    expect(view.height).toBeCloseTo(300);
+  });
+
+  it("scales down a window the frame cannot hold, keeping the ratio", () => {
+    const view = cropWindow({ x: 0, y: 0, width: 100, height: 40 }, { width: 100, height: 50 }, ASPECT);
+
+    expect(view.width / view.height).toBeCloseTo(ASPECT);
+    expect(view.height).toBeLessThanOrEqual(50);
+    expect(view.width).toBeLessThanOrEqual(100);
+    expect(view.y).toBe(0);
   });
 });

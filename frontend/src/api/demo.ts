@@ -27,6 +27,7 @@ function demoCandidates(): Candidate[] {
     rank: index + 1,
     image_path: `demo/${index + 1}.jpg`,
     image_url: `/demo/${index + 1}.jpg`,
+    bbox: null,
     vehicle_id: "vehicle-042",
     camera_id: `cam-${(index % 3) + 1}`,
   }));
