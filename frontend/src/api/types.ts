@@ -18,6 +18,11 @@ export interface Candidate {
   image_path: string | null;
   /** Presigned URL. Expires after S3_PRESIGN_TTL. */
   image_url: string | null;
+  /**
+   * Where the vehicle sits inside that image. The gallery stores whole frames, exactly
+   * like an uploaded query, so showing a candidate means cropping by this.
+   */
+  bbox: BBox | null;
   vehicle_id: string | null;
   camera_id: string | null;
 }

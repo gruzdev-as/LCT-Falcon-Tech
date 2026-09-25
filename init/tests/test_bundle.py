@@ -93,3 +93,27 @@ def test_carries_the_model_that_produced_the_vectors(tmp_path: Path) -> None:
     bundle = load_bundle(write_bundle(tmp_path, model_name="model-b"))
 
     assert bundle.model_name == "model-b"
+
+
+def test_reads_the_optional_bbox_columns(tmp_path: Path) -> None:
+    write_bundle(tmp_path, count=3, boxes=True)
+
+    entries = load_bundle(tmp_path).entries
+
+    assert entries[0].bbox is not None
+    assert (entries[0].bbox.x, entries[0].bbox.y) == (1.0, 2.0)
+    assert (entries[2].bbox.x, entries[2].bbox.width) == (3.0, 30.0)
+
+
+def test_a_manifest_without_bbox_columns_still_loads(tmp_path: Path) -> None:
+    """The columns are optional on purpose: bundles built before them must keep working."""
+    write_bundle(tmp_path, count=2)
+
+    assert [entry.bbox for entry in load_bundle(tmp_path).entries] == [None, None]
+
+
+def test_rejects_a_half_filled_bbox(tmp_path: Path) -> None:
+    write_bundle(tmp_path, count=2, partial_box=True)
+
+    with pytest.raises(ValidationError, match="partial bbox"):
+        load_bundle(tmp_path)

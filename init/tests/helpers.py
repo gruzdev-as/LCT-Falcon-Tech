@@ -5,7 +5,14 @@ from pathlib import Path
 import numpy as np
 
 from inference.tests.helpers import make_image
-from init.src.configs.constants import BUNDLE_FILE, EMBEDDINGS_FILE, IMAGES_DIR, MANIFEST_COLUMNS, MANIFEST_FILE
+from init.src.configs.constants import (
+    BBOX_COLUMNS,
+    BUNDLE_FILE,
+    EMBEDDINGS_FILE,
+    IMAGES_DIR,
+    MANIFEST_COLUMNS,
+    MANIFEST_FILE,
+)
 
 DIM = 8
 VERSION = "test-bundle-1"
@@ -22,6 +29,8 @@ def write_bundle(
     normalize: bool = True,
     declared_count: int | None = None,
     skip_image: int | None = None,
+    boxes: bool = False,
+    partial_box: bool = False,
 ) -> Path:
     """Lay a valid bundle out on disk, with hooks for the broken variants.
 
@@ -36,15 +45,21 @@ def write_bundle(
         name = f"car_{index}.png"
         if index != skip_image:
             (images_dir / name).write_bytes(make_image(index))
-        rows.append({
+        row = {
             "image_id": f"img-{index}",
             "image_path": name,
             "vehicle_id": f"{index // 2}",
             "camera_id": f"cam-{index % 2}",
-        })
+        }
+        if boxes or partial_box:
+            row |= {"bbox_x": 1 + index, "bbox_y": 2 + index, "bbox_width": 30, "bbox_height": 20}
+        if partial_box:
+            row["bbox_height"] = ""
+        rows.append(row)
 
+    columns = list(MANIFEST_COLUMNS) + (list(BBOX_COLUMNS) if boxes or partial_box else [])
     with (root / MANIFEST_FILE).open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(MANIFEST_COLUMNS))
+        writer = csv.DictWriter(handle, fieldnames=columns)
         writer.writeheader()
         writer.writerows(rows)
 

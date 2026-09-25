@@ -16,6 +16,7 @@ from backend.src.configs.constants import (
     ERROR_STATUS_MAP,
 )
 from backend.src.configs.schemas import ErrorResponse
+from common.src.db.session import close_engine
 from common.src.exceptions import FalconError
 from common.src.logging.logging import setup_logging
 from common.src.redis.client import close_redis, init_redis_streams
@@ -35,6 +36,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         yield
     finally:
         await close_redis()
+        await close_engine()
 
 
 app = FastAPI(title=APP_TITLE, lifespan=lifespan)

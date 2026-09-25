@@ -27,14 +27,16 @@
 | --- | --- |
 | `backend/` | FastAPI. Приём, валидация, постановка задачи, отдача результата |
 | `inference/` | Воркер. Кроп, эмбеддинг, поиск в Qdrant, запись результата |
-| `common/` | Общий код: контракты, конфиги, клиенты Redis / S3 |
+| `init/` | Одноразовый bootstrap: артефакты, схема БД, наполнение хранилищ |
+| `common/` | Общий код: контракты, конфиги, ORM-модели, клиенты Redis / Qdrant / S3 |
 | `frontend/` | React + TypeScript (Vite) |
 | `training/` | Ноутбуки и эксперименты, в прод не едут |
 
 | Инфраструктура | Зачем | Версия |
 | --- | --- | --- |
-| Redis Streams | Шина задИач между backend и inference | `7.4.11-alpine` |
+| Redis Streams | Шина задач между backend и inference | `7.4.11-alpine` |
 | Qdrant | Векторная база: эмбеддинги галереи | `v1.19.1` |
+| Postgres | Метаданные: галерея и история поисков | `17.6-alpine` |
 | RustFS (S3) | Оригиналы изображений | `1.0.0-rc.6` |
 
 Всё поднимается одним `docker compose`. Версии образов зафиксированы, `latest` не
@@ -50,6 +52,7 @@ POST /api/v1/search   (multipart: file, bbox, top_k)
   ├─ оригинал в S3
   ├─ SET  task:{id} = pending           (TTL 1 час)
   ├─ XADD falcon:tasks  EmbeddingTask
+  ├─ INSERT search_queries              (bbox, top_k, формат и размеры кадра)
   └─ 202 {"task_id": "..."}
 
         inference (consumer group inference-workers)
@@ -59,10 +62,15 @@ POST /api/v1/search   (multipart: file, bbox, top_k)
           └─ XACK
 
 GET /api/v1/search/{task_id}
-  ├─ есть result:{id}  → 200 + кандидаты
+  ├─ есть result:{id}  → UPDATE search_queries + INSERT search_candidates (идемпотентно)
+  │                    → 200 + кандидаты
   ├─ есть task:{id}    → 202 {"status": "processing"}
   └─ нет ничего        → 404
 ```
+
+Ключи в Redis живут час, поэтому историю поиска фиксирует Postgres: строка запроса
+пишется на POST, исход и кандидаты — на первом GET, который увидел результат.
+Запись best effort: упавший Postgres стоит строки метаданных, но не поиска.
 
 Два архитектурных решения, которые стоит знать:
 
@@ -88,7 +96,9 @@ GET /api/v1/search/{task_id}
 - [ ] Загрузка галереи (`POST /gallery/images`) — без неё искать не по чему
 - [ ] Модель: пока заглушка `stub` (детерминированный вектор от пикселей кропа), настоящая
   ReID-модель встаёт новой реализацией `Embedder`; калибровка порога
-- [ ] Postgres + SQLAlchemy для метаданных и метрик качества
+- [x] **Postgres + SQLAlchemy для метаданных.** `search_queries` и `search_candidates`
+  пишет бэкенд: запрос на POST, исход и кандидаты — идемпотентно на первом GET
+- [ ] Метрики качества поверх этой истории
 
 ## Как запустить
 
@@ -97,7 +107,8 @@ uv sync                                          # dev + common + backend
 uv sync --group inference                        # + torch, только если нужен
 cp .env.example .env
 
-docker compose up -d redis qdrant rustfs
+docker compose up -d redis qdrant postgres rustfs
+docker compose run --rm init                     # схема БД и наполнение хранилищ
 uv run uvicorn backend.app.server:app --reload
 uv run python -m inference.app.main              # воркер; можно запустить несколько
 

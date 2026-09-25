@@ -6,8 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
+from common.src.configs.schemas import BBox
 from common.src.exceptions import ValidationError
 from init.src.configs.constants import (
+    BBOX_COLUMNS,
     BUNDLE_FILE,
     EMBEDDINGS_FILE,
     IMAGES_DIR,
@@ -30,6 +32,9 @@ class GalleryEntry:
 
     vehicle_id: str | None
     camera_id: str | None
+
+    bbox: BBox | None = None
+    """The vehicle inside the frame. None means the frame is already the vehicle."""
 
     def local_path(self, images_dir: Path) -> Path:
         """Where the original lives inside the artifacts directory."""
@@ -147,6 +152,7 @@ def _read_manifest(path: Path) -> list[GalleryEntry]:
             image_path=str(row["image_path"]).strip(),
             vehicle_id=_optional(row["vehicle_id"]),
             camera_id=_optional(row["camera_id"]),
+            bbox=_read_bbox(row),
         )
         for row in rows
     ]
@@ -161,6 +167,23 @@ def _read_manifest(path: Path) -> list[GalleryEntry]:
 def _optional(value: str | None) -> str | None:
     text = (value or "").strip()
     return text or None
+
+
+def _read_bbox(row: dict[str, str | None]) -> BBox | None:
+    """Read the optional bbox columns, refusing a half-filled box.
+
+    Raises:
+        ValidationError: some of the four columns are set and the rest are not.
+    """
+    values = [_optional(row.get(column)) for column in BBOX_COLUMNS]
+    if not any(values):
+        return None
+    if not all(values):
+        msg = f"{MANIFEST_FILE} has a partial bbox"
+        raise ValidationError(msg, details={"image_id": row.get("image_id"), "columns": list(BBOX_COLUMNS)})
+
+    x, y, width, height = (float(value) for value in values)  # type: ignore[arg-type]
+    return BBox(x=x, y=y, width=width, height=height)
 
 
 def _read_embeddings(path: Path) -> np.ndarray:
