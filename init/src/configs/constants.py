@@ -10,6 +10,10 @@ IMAGES_DIR: Final[str] = "images"
 
 MANIFEST_COLUMNS: Final[tuple[str, ...]] = ("image_id", "image_path", "vehicle_id", "camera_id")
 
+# Optional, and deliberately not part of MANIFEST_COLUMNS: that tuple is the gate every
+# bundle must clear, so requiring these would reject every bundle built before them.
+BBOX_COLUMNS: Final[tuple[str, ...]] = ("bbox_x", "bbox_y", "bbox_width", "bbox_height")
+
 ### Downloading
 
 PART_SUFFIX: Final[str] = ".part"

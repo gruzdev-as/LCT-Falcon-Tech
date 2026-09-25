@@ -25,6 +25,10 @@ def build_point(entry: GalleryEntry, vector: list[float]) -> PointStruct:
         payload={
             "image_id": entry.image_id,
             "image_path": object_key(entry),
+            # The gallery stores whole frames, so a client cannot show a candidate without
+            # this. It rides in the payload and not in Postgres because the request path
+            # reads the payload; hitting the database there is against the backend's rules.
+            "bbox": entry.bbox.model_dump() if entry.bbox else None,
             "vehicle_id": entry.vehicle_id,
             "camera_id": entry.camera_id,
         },
