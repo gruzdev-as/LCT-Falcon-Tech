@@ -8,7 +8,10 @@ dependencies = []
 
 [tool.uv]
 package = false
-default-groups = ["dev", "common", "backend", "init"]
+default-groups = ["dev", "common", "backend", "init", "inference"]
+
+[tool.uv.sources]
+vehicle-reid-lab = { path = "training" }
 
 [dependency-groups]
 common = [
@@ -39,14 +42,13 @@ init = [
     "httpx>=0.28",
 ]
 
+# The model code comes from the training submodule, installed as a package: torch,
+# timm and the rest arrive pinned through it, so the gallery and the queries are
+# embedded by the same code at the same versions.
 inference = [
     { include-group = "common" },
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.32",
-    "torch>=2.5",
-    "torchvision>=0.20",
-    "timm>=1.0.11",
-    "opencv-python-headless>=4.10",
+    "vehicle-reid-lab",
+    "pyyaml>=6.0",
 ]
 
 training = [
@@ -66,6 +68,7 @@ dev = [
     "httpx>=0.28",
     "anyio>=4.6",
     "fakeredis>=2.26",
+    "pyyaml>=6.0",
 ]
 
 [tool.ruff]
