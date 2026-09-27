@@ -12,7 +12,9 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --group backend
+# The lock names the training submodule as a path source; uv needs its metadata only.
+COPY training/pyproject.toml ./training/
+RUN uv sync --locked --no-dev --no-default-groups --group backend
 
 COPY common/ ./common/
 COPY backend/ ./backend/

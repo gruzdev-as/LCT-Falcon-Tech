@@ -62,7 +62,7 @@ export function StatusPanel({
               )}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {state.result.candidates.map((candidate) => (
               <CandidateCard key={candidate.image_id} candidate={candidate} />
             ))}
@@ -74,12 +74,17 @@ export function StatusPanel({
     case "rejected":
       return (
         <Notice tone="neutral" title="Такого автомобиля нет в галерее">
-          Лучшее совпадение —{" "}
-          <span className="font-medium text-ink-300 tabular-nums">
-            {((state.result.top_score ?? 0) * 100).toFixed(1)}%
-          </span>
-          , это ниже порога. Показывать слабые совпадения мы не будем: честный пустой
-          ответ полезнее правдоподобного неверного.
+          {state.result.top_score !== null ? (
+            <>
+              Самый похожий кадр —{" "}
+              <span className="font-medium text-ink-300 tabular-nums">
+                {(state.result.top_score * 100).toFixed(1)}%
+              </span>
+              , но проверка совпадения не подтвердила, что это та же машина.
+            </>
+          ) : (
+            "Галерея пока пуста."
+          )}
         </Notice>
       );
 

@@ -8,6 +8,8 @@ LOG_LEVEL: Final[str] = os.getenv("LOG_LEVEL", "INFO").upper()
 ### Redis
 
 TASK_STREAM: Final[str] = "falcon:tasks"
+# Gallery images to embed. Separate from the search stream so a search never queues behind the gallery
+GALLERY_STREAM: Final[str] = "falcon:gallery"
 INFERENCE_GROUP: Final[str] = "inference-workers"
 STREAM_PAYLOAD_FIELD: Final[str] = "payload"
 STREAM_MAXLEN: Final[int] = 100_000
@@ -18,6 +20,15 @@ TASK_KEY: Final[str] = "task:{task_id}"
 RESULT_KEY: Final[str] = "result:{task_id}"
 TASK_TTL_SECONDS: Final[int] = 3600
 RESULT_TTL_SECONDS: Final[int] = 3600
+
+### Redis: gallery indexing
+
+# Hash written by init: what the gallery should hold once the workers are done
+GALLERY_STATE_KEY: Final[str] = "gallery:state"
+GALLERY_STATE_MODEL: Final[str] = "model_version"
+GALLERY_STATE_TOTAL: Final[str] = "total"
+# Set of image ids the workers could not embed: skipped with a warning, not retried
+GALLERY_FAILED_KEY: Final[str] = "gallery:failed"
 
 ### Qdrant
 

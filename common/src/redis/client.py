@@ -31,15 +31,39 @@ async def close_redis() -> None:
 
 
 async def init_redis_streams() -> None:
-    """Create the consumer group if it doesn't exist idempotently."""
+    """Create the consumer group on every stream if it doesn't exist, idempotently.
+
+    The group starts at id 0, so entries published before it existed — gallery tasks
+    init queued before the workers came up — are still delivered.
+    """
     config = StreamConfig()
-    try:
-        await get_redis().xgroup_create(config.stream_name, config.group_name, id="0", mkstream=True)
-        logger.info("Initialized consumer group %s for stream: %s", config.group_name, config.stream_name)
-    except ResponseError as e:
-        if "BUSYGROUP" not in str(e):
-            raise
-        logger.debug("Consumer group %s already exists on stream: %s", config.group_name, config.stream_name)
+    for stream in config.stream_names:
+        try:
+            await get_redis().xgroup_create(stream, config.group_name, id="0", mkstream=True)
+            logger.info("Initialized consumer group %s for stream: %s", config.group_name, stream)
+        except ResponseError as e:
+            if "BUSYGROUP" not in str(e):
+                raise
+            logger.debug("Consumer group %s already exists on stream: %s", config.group_name, stream)
+
+
+async def stream_backlog(stream: str, group: str) -> int:
+    """Entries of a stream the group has not finished: never delivered plus delivered but unacked.
+
+    Returns 0 when the stream or the group does not exist yet.
+    """
+    redis = get_redis()
+    if not await redis.exists(stream):
+        return 0
+    for info in await redis.xinfo_groups(stream):
+        if info["name"] == group:
+            return int(info.get("lag") or 0) + int(info["pending"])
+    return int(await redis.xlen(stream))
+
+
+async def delete_stream(stream: str) -> None:
+    """Drop a stream with its groups and pending entries."""
+    await get_redis().delete(stream)
 
 
 async def publish(stream: str, message: BaseModel) -> str:
@@ -59,7 +83,7 @@ async def read_one[T: BaseModel](
     consumer: str,
     model: type[T],
     *,
-    block_ms: int = 5_000,
+    block_ms: int | None = 5_000,
 ) -> tuple[str, T] | None:
     """Read the next new entry as part of a consumer group.
 
@@ -68,7 +92,7 @@ async def read_one[T: BaseModel](
         group: consumer group name.
         consumer: unique name for this worker within the group.
         model: pydantic model the payload is parsed into.
-        block_ms: how long the read waits for an entry.
+        block_ms: how long the read waits for an entry; None returns at once.
 
     Returns:
         (message_id, parsed_payload), or None if nothing arrived in time. An

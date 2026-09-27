@@ -4,8 +4,17 @@
 .gitmodules
 .github
 
-# Training submodule — separate repo, not deployed, carries LFS weights
-training/
+# Training submodule: only its code goes in, as the package inference installs. The
+# weights come from Hugging Face through init, never from the build context.
+training/.git
+training/weights/
+training/notebooks/
+training/tests/
+training/build/
+training/runs/
+training/data/
+training/extra_data/
+training/artifacts/
 
 # Local bind mounts for compose volumes
 data/

@@ -75,6 +75,23 @@ class EmbeddingTask(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class GalleryTask(BaseModel):
+    """One gallery image to embed and index, published by init onto the gallery stream."""
+
+    task_id: str
+    image_id: str
+    image_path: str
+    """Object key of the original under ``gallery/``; inference reads it from object storage."""
+
+    bbox: BBox
+    vehicle_id: str | None = None
+    camera_id: str | None = None
+    model_version: str
+    """sha256 of the weights the gallery must be embedded with; a worker with other weights refuses the task."""
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class Candidate(BaseModel):
     """One gallery match returned by the vector search."""
 

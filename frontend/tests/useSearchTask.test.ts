@@ -75,6 +75,7 @@ describe("useSearchTask", () => {
           rank: 1,
           image_path: null,
           image_url: null,
+          bbox: null,
           vehicle_id: null,
           camera_id: null,
         },

@@ -23,7 +23,7 @@ class GalleryImage(Base):
     __tablename__ = "gallery_images"
     __table_args__ = (
         Index("ix_gallery_images_vehicle_id", "vehicle_id"),
-        Index("ix_gallery_images_bundle_version", "bundle_version"),
+        Index("ix_gallery_images_gallery_version", "gallery_version"),
     )
 
     image_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -43,8 +43,8 @@ class GalleryImage(Base):
     the whole frame is the vehicle. Mirrors what the Qdrant payload carries, because the
     request path reads the payload and never this table."""
 
-    bundle_version: Mapped[str] = mapped_column(String(128))
-    """Which artifact bundle indexed this row; lets a stale gallery be spotted."""
+    gallery_version: Mapped[str] = mapped_column(String(128))
+    """Fingerprint of the manifest that wrote this row; lets a stale gallery be spotted."""
 
     indexed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -105,7 +105,7 @@ class SearchCandidate(Base):
     """One ranked match a finished search returned.
 
     A historical fact, not a live pointer: the row records what the search answered at
-    the time, even after the gallery is rebuilt from a different bundle. That is why
+    the time, even after the gallery is rebuilt from another manifest. That is why
     ``image_id`` is deliberately not a foreign key into ``gallery_images``.
     """
 

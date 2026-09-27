@@ -100,18 +100,20 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
       S3_BUCKET: ${S3_BUCKET:-falcon-images}
-      INIT_ARTIFACTS_DIR: /artifacts
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      INIT_GALLERY_DIR: /gallery
       INIT_WEIGHTS_DIR: /weights
       INIT_MODEL_URL: ${INIT_MODEL_URL:-}
       INIT_MODEL_SHA256: ${INIT_MODEL_SHA256:-}
-      INIT_IMAGES_URL: ${INIT_IMAGES_URL:-}
-      INIT_IMAGES_SHA256: ${INIT_IMAGES_SHA256:-}
-      INIT_VECTORS_URL: ${INIT_VECTORS_URL:-}
-      INIT_VECTORS_SHA256: ${INIT_VECTORS_SHA256:-}
+      INIT_CATBOOST_URL: ${INIT_CATBOOST_URL:-}
+      INIT_CATBOOST_SHA256: ${INIT_CATBOOST_SHA256:-}
+      INIT_HF_TOKEN: ${INIT_HF_TOKEN:-}
       INIT_FORCE: ${INIT_FORCE:-false}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      - ./data/gallery:/artifacts
+      # The gallery is always mounted by whoever runs the stack: manifest.csv and images/
+      - ${GALLERY_DIR:-./data/gallery}:/gallery:ro
       - ./data/weights:/weights
     depends_on:
       postgres:
@@ -120,6 +122,31 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Waits for the inference workers to embed the gallery init queued, logging progress.
+  # The backend starts only once it exits 0, so nobody searches a half-built gallery.
+  gallery-ready:
+    build:
+      context: .
+      dockerfile: init/deploy/Dockerfile
+    entrypoint: ["python", "-m", "init.app.wait"]
+    restart: "no"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      INIT_WAIT_POLL_S: ${INIT_WAIT_POLL_S:-5}
+      INIT_WAIT_STALL_S: ${INIT_WAIT_STALL_S:-300}
+      INIT_WAIT_TIMEOUT_S: ${INIT_WAIT_TIMEOUT_S:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      inference:
+        condition: service_started
 
   backend:
     build:
@@ -149,7 +176,7 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
-      init:
+      gallery-ready:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
@@ -163,10 +190,8 @@ services:
     build:
       context: .
       dockerfile: inference/deploy/Dockerfile
-      args:
-        DEPS_GROUP: ${INFERENCE_DEPS_GROUP:-common}
     deploy:
-      replicas: ${INFERENCE_REPLICAS:-2}
+      replicas: ${INFERENCE_REPLICAS:-1}
     # Enough to finish the task in flight after SIGTERM
     stop_grace_period: 30s
     environment:
@@ -179,9 +204,15 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
       S3_BUCKET: ${S3_BUCKET:-falcon-images}
-      INFERENCE_EMBEDDER: ${INFERENCE_EMBEDDER:-stub}
-      INFERENCE_EMBEDDING_DIM: ${INFERENCE_EMBEDDING_DIM:-512}
-      INFERENCE_REJECT_THRESHOLD: ${INFERENCE_REJECT_THRESHOLD:-0.5}
+      INFERENCE_WEIGHTS_PATH: ${INFERENCE_WEIGHTS_PATH:-/weights/eva02.pt}
+      INFERENCE_DEVICE: ${INFERENCE_DEVICE:-auto}
+      INFERENCE_COMPILE: ${INFERENCE_COMPILE:-false}
+      INFERENCE_TORCH_THREADS: ${INFERENCE_TORCH_THREADS:-0}
+      # Relative to /app: the preset ships in the image with the training submodule
+      INFERENCE_REFUSAL_CONFIG: ${INFERENCE_REFUSAL_CONFIG:-training/configs/refusal/eva02_ensemble.yaml}
+      INFERENCE_REFUSAL_MODEL_PATH: ${INFERENCE_REFUSAL_MODEL_PATH:-/weights/eva02_catboost.cbm}
+      # Empty: the refusal preset decides. A value replaces it with a plain cosine threshold
+      INFERENCE_REJECT_THRESHOLD: ${INFERENCE_REJECT_THRESHOLD:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./data/weights:/weights:ro

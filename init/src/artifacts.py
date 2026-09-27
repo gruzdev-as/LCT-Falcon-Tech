@@ -1,59 +1,49 @@
+import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
+import anyio.to_thread
 import httpx
 
-from init.src.configs.constants import DOWNLOAD_TIMEOUT_S, IMAGES_DIR
+from common.src.exceptions import ValidationError
+from init.src.configs.constants import DOWNLOAD_TIMEOUT_S, HASH_CHUNK_BYTES, HF_HOSTS
 from init.src.configs.settings import InitSettings
-from init.src.fetch import fetch, filename_from_url, unpack
+from init.src.fetch import fetch, filename_from_url
 
 logger = logging.getLogger(__name__)
 
 MODEL = "model"
-IMAGES = "images"
-VECTORS = "vectors"
+CATBOOST = "catboost"
 
 
 @dataclass(frozen=True, slots=True)
 class Artifact:
-    """One downloadable input of the bootstrap."""
+    """One downloadable file of the bootstrap."""
 
     name: str
     url: str
     sha256: str
     target_dir: Path
-    extract: bool
 
     @property
     def enabled(self) -> bool:
         """False when no link is configured, which skips the artifact."""
         return bool(self.url.strip())
 
+    @property
+    def path(self) -> Path:
+        """Where the file lands."""
+        return self.target_dir / filename_from_url(self.url)
+
 
 def registry(settings: InitSettings) -> list[Artifact]:
     """Describe every artifact the bootstrap knows how to fetch."""
     return [
+        Artifact(name=MODEL, url=settings.model_url, sha256=settings.model_sha256, target_dir=settings.weights_dir),
         Artifact(
-            name=MODEL,
-            url=settings.model_url,
-            sha256=settings.model_sha256,
-            target_dir=settings.weights_dir,
-            extract=False,
-        ),
-        Artifact(
-            name=IMAGES,
-            url=settings.images_url,
-            sha256=settings.images_sha256,
-            target_dir=settings.artifacts_dir / IMAGES_DIR,
-            extract=True,
-        ),
-        Artifact(
-            name=VECTORS,
-            url=settings.vectors_url,
-            sha256=settings.vectors_sha256,
-            target_dir=settings.artifacts_dir,
-            extract=True,
+            name=CATBOOST, url=settings.catboost_url, sha256=settings.catboost_sha256, target_dir=settings.weights_dir
         ),
     ]
 
@@ -62,39 +52,55 @@ async def fetch_all(settings: InitSettings) -> None:
     """Download whatever is configured and not already on disk.
 
     Raises:
-        StorageError: a download failed or an archive could not be unpacked.
+        StorageError: a download failed or its checksum did not match.
     """
     async with httpx.AsyncClient(timeout=DOWNLOAD_TIMEOUT_S, follow_redirects=True) as client:
         for artifact in registry(settings):
             if not artifact.enabled:
                 logger.warning("No INIT_%s_URL: skipping the %s artifact", artifact.name.upper(), artifact.name)
                 continue
-            await _fetch_one(client, artifact, settings)
+            await fetch(
+                url=artifact.url,
+                destination=artifact.path,
+                expected=artifact.sha256,
+                force=settings.force,
+                headers=_auth_headers(artifact.url, settings),
+                client=client,
+            )
 
 
-async def _fetch_one(client: httpx.AsyncClient, artifact: Artifact, settings: InitSettings) -> None:
-    if not artifact.extract:
-        await fetch(
-            url=artifact.url,
-            destination=artifact.target_dir / filename_from_url(artifact.url),
-            expected=artifact.sha256,
-            force=settings.force,
-            client=client,
-        )
-        return
+async def model_version(settings: InitSettings) -> str:
+    """The sha256 of the served weights: the version every gallery point must carry.
 
-    # For an archive the unpacked directory is what matters, so it is the gate —
-    # the download is skipped along with it, and the archive is not kept around.
-    if _looks_unpacked(artifact.target_dir) and not settings.force:
-        logger.info("Already unpacked, not downloading: %s", artifact.name)
-        return
+    The worker computes the same digest of the file it loads, so the two agree without
+    either reading the other's configuration.
 
-    archive = settings.artifacts_dir / ".downloads" / filename_from_url(artifact.url)
-    await fetch(url=artifact.url, destination=archive, expected=artifact.sha256, client=client)
-    await unpack(archive, artifact.target_dir)
-    archive.unlink(missing_ok=True)
+    Raises:
+        ValidationError: no model is configured, or its file is missing.
+    """
+    model = registry(settings)[0]
+    if not model.enabled:
+        msg = "INIT_MODEL_URL is empty: the gallery cannot be embedded without the model"
+        raise ValidationError(msg)
+    if model.sha256.strip():
+        return model.sha256.strip().lower()
+    if not model.path.is_file():
+        msg = f"the model is missing at {model.path}"
+        raise ValidationError(msg)
+    return await anyio.to_thread.run_sync(_sha256, model.path)
 
 
-def _looks_unpacked(target: Path) -> bool:
-    """Cheap check that a previous run already extracted something here."""
-    return target.is_dir() and any(target.iterdir())
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(HASH_CHUNK_BYTES):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _auth_headers(url: str, settings: InitSettings) -> dict[str, str]:
+    """Attach the HF token, but only to Hugging Face; httpx drops it on the redirect to the CDN."""
+    token = settings.hf_token.get_secret_value().strip()
+    if not token or urlparse(url).hostname not in HF_HOSTS:
+        return {}
+    return {"Authorization": f"Bearer {token}"}

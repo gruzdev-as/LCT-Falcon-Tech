@@ -7,7 +7,7 @@ from common.src.logging.logging import setup_logging
 from common.src.qdrant.client import close_qdrant
 from common.src.redis.client import close_redis
 from inference.src.configs.settings import get_settings
-from inference.src.models.factory import build_embedder
+from inference.src.models.factory import build_embedder, build_refusal
 from inference.src.processor import Processor
 from inference.src.worker import InferenceWorker
 
@@ -26,7 +26,7 @@ async def _stop_on_signal(worker: InferenceWorker) -> None:
 async def main() -> None:
     settings = get_settings()
     embedder = build_embedder(settings)
-    worker = InferenceWorker(Processor(embedder, settings.reject_threshold), settings)
+    worker = InferenceWorker(Processor(embedder, build_refusal(settings)), settings)
 
     try:
         async with anyio.create_task_group() as group:
