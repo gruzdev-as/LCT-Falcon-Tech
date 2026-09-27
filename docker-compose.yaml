@@ -166,10 +166,8 @@ services:
     build:
       context: .
       dockerfile: inference/deploy/Dockerfile
-      args:
-        DEPS_GROUP: ${INFERENCE_DEPS_GROUP:-common}
     deploy:
-      replicas: ${INFERENCE_REPLICAS:-2}
+      replicas: ${INFERENCE_REPLICAS:-1}
     # Enough to finish the task in flight after SIGTERM
     stop_grace_period: 30s
     environment:
@@ -182,9 +180,17 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
       S3_BUCKET: ${S3_BUCKET:-falcon-images}
-      INFERENCE_EMBEDDER: ${INFERENCE_EMBEDDER:-stub}
+      INFERENCE_EMBEDDER: ${INFERENCE_EMBEDDER:-eva02}
+      INFERENCE_WEIGHTS_PATH: ${INFERENCE_WEIGHTS_PATH:-/weights/eva02.pt}
+      INFERENCE_DEVICE: ${INFERENCE_DEVICE:-auto}
+      INFERENCE_COMPILE: ${INFERENCE_COMPILE:-false}
+      INFERENCE_TORCH_THREADS: ${INFERENCE_TORCH_THREADS:-0}
       INFERENCE_EMBEDDING_DIM: ${INFERENCE_EMBEDDING_DIM:-512}
-      INFERENCE_REJECT_THRESHOLD: ${INFERENCE_REJECT_THRESHOLD:-0.5}
+      # Relative to /app: the preset ships in the image with the training submodule
+      INFERENCE_REFUSAL_CONFIG: ${INFERENCE_REFUSAL_CONFIG:-training/configs/refusal/eva02_ensemble.yaml}
+      INFERENCE_REFUSAL_MODEL_PATH: ${INFERENCE_REFUSAL_MODEL_PATH:-/weights/eva02_catboost.cbm}
+      # Empty: the refusal preset decides. A value replaces it with a plain cosine threshold
+      INFERENCE_REJECT_THRESHOLD: ${INFERENCE_REJECT_THRESHOLD:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./data/weights:/weights:ro

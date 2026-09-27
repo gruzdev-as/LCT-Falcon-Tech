@@ -1,0 +1,11 @@
+# GPU for the inference workers, opt-in so that a host without the NVIDIA runtime still comes up on the CPU:
+#   docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up
+services:
+  inference:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
