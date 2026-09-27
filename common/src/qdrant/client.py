@@ -75,7 +75,11 @@ async def upsert_points(collection: str, points: Sequence[PointStruct]) -> None:
     await get_qdrant().upsert(collection, list(points), wait=True)
 
 
-async def search(collection: str, vector: Sequence[float], limit: int) -> list[ScoredPoint]:
-    """Find the nearest neighbours of one vector."""
-    response = await get_qdrant().query_points(collection, query=list(vector), limit=limit, with_payload=True)
+async def search(
+    collection: str, vector: Sequence[float], limit: int, *, with_vectors: bool = False
+) -> list[ScoredPoint]:
+    """Find the nearest neighbours of one vector, optionally with their stored vectors."""
+    response = await get_qdrant().query_points(
+        collection, query=list(vector), limit=limit, with_payload=True, with_vectors=with_vectors
+    )
     return response.points
