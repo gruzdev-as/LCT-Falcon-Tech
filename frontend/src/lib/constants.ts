@@ -11,9 +11,9 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/bmp",
 ] as const;
 
-export const DEFAULT_TOP_K = 10;
-export const MAX_TOP_K = 100;
-export const MIN_TOP_K = 1;
+// A ceiling, not a count: inference returns only the candidates that clear its
+// refusal, usually two or three. Ten is what the results column fits.
+export const TOP_K = 10;
 
 // Polling schedule: 400 → 600 → 900 → 1350 → 2000 → 2000…
 export const POLL_FIRST_DELAY_MS = 400;

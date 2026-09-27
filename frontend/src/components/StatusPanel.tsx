@@ -74,12 +74,17 @@ export function StatusPanel({
     case "rejected":
       return (
         <Notice tone="neutral" title="Такого автомобиля нет в галерее">
-          Лучшее совпадение —{" "}
-          <span className="font-medium text-ink-300 tabular-nums">
-            {((state.result.top_score ?? 0) * 100).toFixed(1)}%
-          </span>
-          , это ниже порога. Показывать слабые совпадения мы не будем: честный пустой
-          ответ полезнее правдоподобного неверного.
+          {state.result.top_score !== null ? (
+            <>
+              Самый похожий кадр —{" "}
+              <span className="font-medium text-ink-300 tabular-nums">
+                {(state.result.top_score * 100).toFixed(1)}%
+              </span>
+              , но проверка совпадения не подтвердила, что это та же машина.
+            </>
+          ) : (
+            "Галерея пока пуста."
+          )}
         </Notice>
       );
 

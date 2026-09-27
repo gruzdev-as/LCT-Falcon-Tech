@@ -2,13 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { searchApi } from "../api/index";
 import type { BBox } from "../api/types";
-import { DEFAULT_TOP_K, MIN_SIDE_PX } from "../lib/constants";
+import { MIN_SIDE_PX, TOP_K } from "../lib/constants";
 import { isBoxValid } from "../lib/geometry";
 import { useSearchTask } from "../lib/useSearchTask";
 import { BBoxEditor } from "./BBoxEditor";
 import { ImageDropzone } from "./ImageDropzone";
 import { StatusPanel } from "./StatusPanel";
-import { TopKControl } from "./TopKControl";
 
 interface Upload {
   file: File;
@@ -19,7 +18,6 @@ interface Upload {
 export function SearchWidget() {
   const [upload, setUpload] = useState<Upload | null>(null);
   const [box, setBox] = useState<BBox | null>(null);
-  const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [fileError, setFileError] = useState<string | null>(null);
   const [workerMissing, setWorkerMissing] = useState<boolean | null>(null);
 
@@ -70,7 +68,7 @@ export function SearchWidget() {
   const submit = () => {
     if (!upload || !ready) return;
     setWorkerMissing(null);
-    void start({ file: upload.file, bbox: box, topK });
+    void start({ file: upload.file, bbox: box, topK: TOP_K });
   };
 
   return (
@@ -103,9 +101,7 @@ export function SearchWidget() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-surface-800 pt-4">
-              <TopKControl value={topK} onChange={setTopK} disabled={busy} />
-
+            <div className="flex flex-wrap items-center justify-end gap-4 border-t border-surface-800 pt-4">
               <div className="flex items-center gap-3">
                 {box && !ready && (
                   <span className="text-sm text-danger-400">
