@@ -19,6 +19,10 @@ class Embedder(Protocol):
     dim: int
     """Length of the vector ``embed`` returns; the Qdrant collection is sized by it."""
 
+    version: str
+    """The weights, as sha256 of the checkpoint; gallery points carry it, and a gallery task
+    queued for other weights is refused."""
+
     def embed(self, data: bytes, bbox: BBox) -> np.ndarray:
         """Embed the vehicle inside one encoded image.
 

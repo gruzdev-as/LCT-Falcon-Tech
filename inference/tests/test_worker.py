@@ -4,16 +4,25 @@ import fakeredis
 import pytest
 from qdrant_client import AsyncQdrantClient
 
-from common.src.configs.constants import INFERENCE_GROUP, RESULT_KEY, TASK_KEY, TASK_STREAM
-from common.src.configs.schemas import EmbeddingTask, SearchResult, TaskStatus
+from common.src.configs.constants import (
+    GALLERY_COLLECTION,
+    GALLERY_FAILED_KEY,
+    GALLERY_STREAM,
+    INFERENCE_GROUP,
+    RESULT_KEY,
+    TASK_KEY,
+    TASK_STREAM,
+)
+from common.src.configs.schemas import EmbeddingTask, GalleryTask, SearchResult, TaskStatus
 from common.src.qdrant import client as qdrant_module
-from common.src.redis.client import read_one
+from common.src.redis.client import publish, read_one
+from inference.src import worker as worker_module
 from inference.src.configs.constants import POISON_ERROR
 from inference.src.configs.settings import InferenceSettings
 from inference.src.models.refusal import CosineRefusal
 from inference.src.processor import Processor
 from inference.src.worker import InferenceWorker
-from inference.tests.helpers import FakeEmbedder, Submit, make_image
+from inference.tests.helpers import FakeEmbedder, Submit, make_gallery_task, make_image
 
 
 def _settings(tmp_path: Path, **overrides: object) -> InferenceSettings:
@@ -204,3 +213,73 @@ async def test_run_touches_the_heartbeat_and_stops_on_request(
 
     assert (await _result(redis, task)).status == TaskStatus.DONE
     assert worker._settings.heartbeat_path.exists()
+
+
+async def _queue_gallery(objects: dict[str, bytes], image_id: str = "g-1", **kwargs: object) -> GalleryTask:
+    task = make_gallery_task(image_id, **kwargs)
+    objects[task.image_path] = make_image(7)
+    await publish(GALLERY_STREAM, task)
+    return task
+
+
+async def _gallery_pending(redis: fakeredis.FakeAsyncRedis) -> int:
+    return (await redis.xpending(GALLERY_STREAM, INFERENCE_GROUP))["pending"]
+
+
+async def test_indexes_a_queued_gallery_image(
+    worker: InferenceWorker, objects: dict[str, bytes], redis: fakeredis.FakeAsyncRedis, qdrant: AsyncQdrantClient
+) -> None:
+    await _queue_gallery(objects)
+
+    assert await worker.run_once()
+
+    assert (await qdrant.count(GALLERY_COLLECTION)).count == 1
+    assert await _gallery_pending(redis) == 0
+
+
+async def test_a_search_goes_before_the_gallery(
+    worker: InferenceWorker,
+    submit: Submit,
+    objects: dict[str, bytes],
+    redis: fakeredis.FakeAsyncRedis,
+    qdrant: AsyncQdrantClient,
+) -> None:
+    """A user is waiting on the search; the gallery can wait one embedding."""
+    await _queue_gallery(objects, "g-1")
+    await _queue_gallery(objects, "g-2")
+    task = await submit(make_image(1))
+
+    await worker.run_once()
+
+    assert await _result(redis, task) is not None
+    assert (await qdrant.count(GALLERY_COLLECTION)).count == 0
+
+
+async def test_a_gallery_task_for_other_weights_stays_queued(
+    worker: InferenceWorker, objects: dict[str, bytes], redis: fakeredis.FakeAsyncRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(worker_module, "BACKOFF_SECONDS", 0)
+    await _queue_gallery(objects, model_version="f" * 64)
+
+    assert not await worker.run_once()
+
+    assert await _gallery_pending(redis) == 1
+    assert not await redis.exists(GALLERY_FAILED_KEY)
+
+
+async def test_a_gallery_image_that_keeps_killing_workers_is_skipped(
+    embedder: FakeEmbedder,
+    qdrant: AsyncQdrantClient,
+    objects: dict[str, bytes],
+    redis: fakeredis.FakeAsyncRedis,
+    tmp_path: Path,
+) -> None:
+    worker = _worker(embedder, _settings(tmp_path, max_deliveries=1))
+    await worker.start()
+    task = await _queue_gallery(objects)
+    await read_one(GALLERY_STREAM, INFERENCE_GROUP, "dead", GalleryTask, block_ms=10)
+
+    assert not await worker.run_once()
+
+    assert await redis.smembers(GALLERY_FAILED_KEY) == {task.image_id}
+    assert await _gallery_pending(redis) == 0

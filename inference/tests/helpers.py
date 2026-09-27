@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
-from common.src.configs.schemas import BBox, EmbeddingTask
+from common.src.configs.schemas import BBox, EmbeddingTask, GalleryTask
 from common.src.exceptions import ValidationError
 
 DIM = 16
@@ -26,6 +26,18 @@ def make_image(seed: int, size: tuple[int, int] = (128, 96), image_format: str =
 
 def make_task(image_path: str = "queries/q.png", bbox: BBox = BOX, top_k: int = 5) -> EmbeddingTask:
     return EmbeddingTask(task_id=uuid.uuid4().hex, image_path=image_path, bbox=bbox, top_k=top_k)
+
+
+def make_gallery_task(image_id: str = "g-1", model_version: str = "fake", bbox: BBox = BOX) -> GalleryTask:
+    return GalleryTask(
+        task_id=uuid.uuid4().hex,
+        image_id=image_id,
+        image_path=f"gallery/{image_id}.png",
+        bbox=bbox,
+        vehicle_id="car-1",
+        camera_id="cam-1",
+        model_version=model_version,
+    )
 
 
 class FakeEmbedder:
