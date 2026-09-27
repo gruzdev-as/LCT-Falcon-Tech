@@ -27,32 +27,28 @@ def to_similarity(cosine: float) -> float:
 def rank_candidates(
     points: Sequence[ScoredPoint],
     *,
-    threshold: float,
+    accepted: bool,
+    min_score: float,
     sign_url: Callable[[str], str],
 ) -> tuple[list[Candidate], float | None, bool]:
     """Turn raw search hits into the Result stage output.
 
     Args:
         points: gallery hits for one query.
-        threshold: minimum score of the best candidate. Currently ignored, see below.
+        accepted: the refusal decision; False answers rejected however good the hits look.
+        min_score: every returned candidate must score at least this.
         sign_url: builds a browser-loadable link for a stored image path.
 
     Returns:
-        ``(candidates, top_score, rejected)``. Candidates are sorted by descending
-        score. Only a gallery with no hits at all comes back empty and ``rejected``.
+        (candidates, top_score, rejected)
     """
     ordered = sorted(points, key=lambda point: point.score, reverse=True)
     top_score = to_similarity(ordered[0].score) if ordered else None
 
-    # TODO: put the threshold back once a real ReID model replaces the stub. The stub
-    # hashes the crop's pixels, so anything but a byte-identical crop scores around 0.2
-    # and every search answers rejected, which leaves the pipeline untestable end to end.
-    # if top_score is None or top_score < threshold:  # noqa: ERA001
-    #     return [], top_score, True  # noqa: ERA001
-
-    # Kept: an empty gallery has nothing to match, which is not a confidence call.
-    if top_score is None:
+    kept = [point for point in ordered if point.score >= min_score]
+    if not accepted or not kept:
         return [], top_score, True
+    ordered = kept
 
     candidates = []
     for rank, point in enumerate(ordered, start=1):

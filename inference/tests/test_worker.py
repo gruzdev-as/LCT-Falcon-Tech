@@ -10,6 +10,7 @@ from common.src.qdrant import client as qdrant_module
 from common.src.redis.client import read_one
 from inference.src.configs.constants import POISON_ERROR
 from inference.src.configs.settings import InferenceSettings
+from inference.src.models.refusal import CosineRefusal
 from inference.src.models.stub import StubEmbedder
 from inference.src.processor import Processor
 from inference.src.worker import InferenceWorker
@@ -28,7 +29,7 @@ def _settings(tmp_path: Path, **overrides: object) -> InferenceSettings:
 
 
 def _worker(embedder: StubEmbedder, settings: InferenceSettings, consumer: str = "live") -> InferenceWorker:
-    return InferenceWorker(Processor(embedder, reject_threshold=0.5), settings, consumer=consumer)
+    return InferenceWorker(Processor(embedder, CosineRefusal(0.5)), settings, consumer=consumer)
 
 
 @pytest.fixture

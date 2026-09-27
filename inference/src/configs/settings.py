@@ -5,17 +5,20 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from inference.src.configs.constants import HEARTBEAT_PATH, WEIGHTS_PATH
+from inference.src.configs.constants import HEARTBEAT_PATH, REFUSAL_CONFIG, REFUSAL_MODEL_PATH, WEIGHTS_PATH
 
 
 class InferenceSettings(BaseSettings):
     """Worker configuration, read from ``INFERENCE_*`` environment variables."""
 
-    model_config = SettingsConfigDict(env_prefix="INFERENCE_", extra="ignore")
+    # Empty means unset, so compose can pass an optional variable through as ``${VAR:-}``.
+    model_config = SettingsConfigDict(env_prefix="INFERENCE_", extra="ignore", env_ignore_empty=True)
 
     embedder: str = Field(default="stub", description="Embedding backend, see models.factory")
     embedding_dim: int = Field(default=512, gt=0, description="Only for the stub; a real model reports its own")
-    reject_threshold: float = Field(default=0.5, ge=0, le=1, description="Score below this yields a rejected result")
+    refusal_config: Path = Field(default=REFUSAL_CONFIG, description="Training's refusal preset: kind and thresholds")
+    refusal_model_path: Path = Field(default=REFUSAL_MODEL_PATH, description="CatBoost refusal head")
+    reject_threshold: float | None = Field(default=None, ge=0, le=1, description="Override: reject below this cosine.")
 
     weights_path: Path = Field(default=WEIGHTS_PATH, description="Serving checkpoint of the ReID model")
     device: Literal["auto", "cpu", "cuda", "mps"] = Field(default="auto", description="auto: cuda if present, else cpu")

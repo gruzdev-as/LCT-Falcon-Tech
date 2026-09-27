@@ -11,6 +11,10 @@ POISON_ERROR: Final[str] = "task failed on every delivery attempt"
 ### Model artifacts: init downloads them into /weights, compose mounts it read-only
 
 WEIGHTS_PATH: Final[Path] = Path("/weights/eva02.pt")
+REFUSAL_MODEL_PATH: Final[Path] = Path("/weights/eva02_catboost.cbm")
+
+# Training's refusal preset. Relative to the repo root
+REFUSAL_CONFIG: Final[Path] = Path("training/configs/refusal/eva02_ensemble.yaml")
 
 ### Liveness
 

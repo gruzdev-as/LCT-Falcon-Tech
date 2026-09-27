@@ -13,6 +13,7 @@ from common.src.exceptions import NotFoundError, ValidationError
 from common.src.qdrant import client as qdrant
 from common.src.storage import client as storage
 from inference.src.models.base import Embedder
+from inference.src.models.refusal import Refusal
 from inference.src.pipeline.postprocess import l2_normalize, rank_candidates
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ class Processor:
     """Processing, Analysis and Result stages for one task."""
 
     embedder: Embedder
-    reject_threshold: float
+    refusal: Refusal
 
     async def process(self, task: EmbeddingTask) -> SearchResult:
         """Crop, embed, search and rank one task.
@@ -39,8 +40,20 @@ class Processor:
             logger.warning("task=%s stage=processing failed: %s", task.task_id, exc.message)
             return self.failed(task, exc.message)
 
-        hits = await qdrant.search(GALLERY_COLLECTION, vector.tolist(), task.top_k)
-        return self._rank(task, hits)
+        # The refusal may need more neighbours than the caller asked to see.
+        limit = max(task.top_k, self.refusal.neighbours)
+        hits = await qdrant.search(GALLERY_COLLECTION, vector.tolist(), limit, with_vectors=self.refusal.needs_vectors)
+        accepted = bool(hits) and await anyio.to_thread.run_sync(
+            self.refusal.accept, vector, hits[: self.refusal.neighbours]
+        )
+        logger.info(
+            "task=%s stage=analysis refusal=%s accepted=%s hits=%d",
+            task.task_id,
+            self.refusal.name,
+            accepted,
+            len(hits),
+        )
+        return self._rank(task, hits[: task.top_k], accepted=accepted)
 
     def failed(self, task: EmbeddingTask, error: str) -> SearchResult:
         """Build the result for a task that cannot be completed."""
@@ -60,9 +73,9 @@ class Processor:
             raise RuntimeError(msg)
         return vector
 
-    def _rank(self, task: EmbeddingTask, hits: Sequence[ScoredPoint]) -> SearchResult:
+    def _rank(self, task: EmbeddingTask, hits: Sequence[ScoredPoint], *, accepted: bool) -> SearchResult:
         candidates, top_score, rejected = rank_candidates(
-            hits, threshold=self.reject_threshold, sign_url=storage.url_for
+            hits, accepted=accepted, min_score=self.refusal.min_score, sign_url=storage.url_for
         )
         return SearchResult(
             task_id=task.task_id,
