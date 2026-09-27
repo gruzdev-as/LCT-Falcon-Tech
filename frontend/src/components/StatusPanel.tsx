@@ -29,8 +29,17 @@ export function StatusPanel({
   workerMissing: boolean | null;
 }) {
   switch (state.phase) {
+    // Holds the results column open so the page does not look half-empty before a search.
     case "idle":
-      return null;
+      return (
+        <div className="flex min-h-80 flex-col items-center justify-center self-stretch rounded-2xl border border-surface-800 bg-surface-900/50 px-6 py-12 text-center">
+          <p className="font-medium text-ink-300">Здесь появятся найденные кадры</p>
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-ink-600">
+            Загрузите фото, выделите автомобиль и запустите поиск — кандидаты выстроятся по
+            убыванию сходства.
+          </p>
+        </div>
+      );
 
     case "uploading":
       return <Notice tone="neutral" title="Отправляем изображение…" />;
@@ -47,8 +56,8 @@ export function StatusPanel({
 
     case "found":
       return (
-        <div>
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="space-y-5 rounded-2xl border border-surface-800 bg-surface-900/50 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-surface-800 pb-4">
             <h2 className="text-lg font-semibold text-ink-100">
               Найдено: {state.result.candidates.length}
             </h2>
