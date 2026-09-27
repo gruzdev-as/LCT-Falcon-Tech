@@ -17,6 +17,10 @@ def setup_logging() -> None:
     root.addHandler(handler)
     root.setLevel(LOG_LEVEL)
 
+    # httpx logs every request at INFO, and the Qdrant client speaks HTTP: one line per
+    # search or count would drown the events that carry task_id.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
     # To ensure the same format of logging
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         logger = logging.getLogger(name)
