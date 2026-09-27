@@ -62,7 +62,7 @@ export function StatusPanel({
               )}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {state.result.candidates.map((candidate) => (
               <CandidateCard key={candidate.image_id} candidate={candidate} />
             ))}
