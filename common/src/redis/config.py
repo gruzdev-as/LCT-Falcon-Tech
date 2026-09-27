@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
 
-from common.src.configs.constants import INFERENCE_GROUP, TASK_STREAM
+from common.src.configs.constants import GALLERY_STREAM, INFERENCE_GROUP, TASK_STREAM
 
 type StreamEntry = tuple[str, dict[str, str]]
 type StreamReply = list[tuple[str, list[StreamEntry]]]
@@ -29,5 +29,5 @@ class RedisConfig:
 class StreamConfig:
     """Configure Redis Streams."""
 
-    stream_name: str = TASK_STREAM
+    stream_names: tuple[str, ...] = (TASK_STREAM, GALLERY_STREAM)
     group_name: str = INFERENCE_GROUP

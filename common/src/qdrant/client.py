@@ -3,7 +3,16 @@ from collections.abc import Sequence
 from dataclasses import asdict
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, PointStruct, ScoredPoint, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointIdsList,
+    PointStruct,
+    ScoredPoint,
+    VectorParams,
+)
 
 from common.src.exceptions import StorageError
 from common.src.qdrant.config import QdrantConfig
@@ -60,12 +69,51 @@ async def recreate_collection(name: str, dim: int) -> None:
     logger.info("Recreated Qdrant collection %s (dim=%d)", name, dim)
 
 
-async def count_points(collection: str) -> int:
-    """Return how many points the collection holds, or 0 if it does not exist."""
+async def count_points(collection: str, *, where: tuple[str, str] | None = None) -> int:
+    """Return how many points the collection holds, or 0 if it does not exist.
+
+    Args:
+        collection: collection name.
+        where: optional ``(payload field, value)`` the counted points must match.
+    """
     client = get_qdrant()
     if not await client.collection_exists(collection):
         return 0
-    return (await client.count(collection, exact=True)).count
+    condition = None
+    if where is not None:
+        key, value = where
+        condition = Filter(must=[FieldCondition(key=key, match=MatchValue(value=value))])
+    return (await client.count(collection, count_filter=condition, exact=True)).count
+
+
+async def payload_values(collection: str, field: str, *, page: int = 1024) -> dict[str, object]:
+    """Map every point id to one payload field, or return {} if the collection does not exist."""
+    client = get_qdrant()
+    if not await client.collection_exists(collection):
+        return {}
+    values: dict[str, object] = {}
+    offset = None
+    while True:
+        points, offset = await client.scroll(
+            collection, limit=page, offset=offset, with_payload=[field], with_vectors=False
+        )
+        values.update({str(point.id): (point.payload or {}).get(field) for point in points})
+        if offset is None:
+            return values
+
+
+async def delete_points(collection: str, ids: Sequence[str]) -> None:
+    """Remove points by id, waiting until they are gone from search."""
+    if ids:
+        await get_qdrant().delete(collection, points_selector=PointIdsList(points=list(ids)), wait=True)
+
+
+async def delete_collection(name: str) -> None:
+    """Drop a collection if it exists."""
+    client = get_qdrant()
+    if await client.collection_exists(name):
+        await client.delete_collection(name)
+        logger.info("Dropped Qdrant collection %s", name)
 
 
 async def upsert_points(collection: str, points: Sequence[PointStruct]) -> None:
