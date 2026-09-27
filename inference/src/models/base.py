@@ -1,11 +1,17 @@
 from typing import Protocol
 
 import numpy as np
-from PIL import Image
+
+from common.src.configs.schemas import BBox
 
 
 class Embedder(Protocol):
-    """An appearance model: one vehicle crop in, one vector out."""
+    """An appearance model: one stored frame and its vehicle box in, one vector out.
+
+    The embedder owns decoding, cropping and preprocessing, because they are part of
+    the model's recipe: the context around the box, the input size and the
+    normalization have to match what the gallery was embedded with.
+    """
 
     name: str
     """Identifier reported in ``SearchResult.model_name``."""
@@ -13,16 +19,19 @@ class Embedder(Protocol):
     dim: int
     """Length of the vector ``embed`` returns; the Qdrant collection is sized by it."""
 
-    input_size: tuple[int, int]
-    """(width, height) the crop is resized to before ``embed``."""
-
-    def embed(self, image: Image.Image) -> np.ndarray:
-        """Embed one preprocessed RGB crop.
+    def embed(self, data: bytes, bbox: BBox) -> np.ndarray:
+        """Embed the vehicle inside one encoded image.
 
         Blocking; the worker calls it off the event loop.
 
+        Args:
+            data: encoded image bytes as stored at ingestion.
+            bbox: vehicle box in absolute pixels of the decoded frame.
+
         Returns:
-            float32 array of shape ``(dim,)``. Need not be normalized — the pipeline
-            normalizes every vector itself.
+            float32 array of shape ``(dim,)``.
+
+        Raises:
+            ValidationError: the bytes do not decode, or the box degenerates on the image.
         """
         ...

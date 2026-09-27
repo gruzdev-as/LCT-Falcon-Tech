@@ -11,7 +11,7 @@ from inference.src.models.stub import StubEmbedder
 from inference.src.pipeline.crop import crop_vehicle
 from inference.src.pipeline.postprocess import l2_normalize, rank_candidates
 from inference.src.pipeline.preprocess import preprocess
-from inference.tests.helpers import make_image
+from inference.tests.helpers import BOX, make_image
 
 
 def _sign(key: str) -> str:
@@ -60,10 +60,15 @@ def test_l2_normalize_leaves_a_zero_vector_zero() -> None:
 
 def test_stub_embedder_is_deterministic_per_crop() -> None:
     embedder = StubEmbedder(dim=8)
-    red, blue = Image.new("RGB", (4, 4), "red"), Image.new("RGB", (4, 4), "blue")
-    assert embedder.embed(red).shape == (8,)
-    np.testing.assert_array_equal(embedder.embed(red), embedder.embed(red))
-    assert not np.array_equal(embedder.embed(red), embedder.embed(blue))
+    first, second = make_image(1), make_image(2)
+    assert embedder.embed(first, BOX).shape == (8,)
+    np.testing.assert_array_equal(embedder.embed(first, BOX), embedder.embed(first, BOX))
+    assert not np.array_equal(embedder.embed(first, BOX), embedder.embed(second, BOX))
+
+
+def test_stub_embedder_rejects_undecodable_bytes() -> None:
+    with pytest.raises(ValidationError):
+        StubEmbedder(dim=8).embed(b"definitely not an image", BOX)
 
 
 def test_unknown_embedder_is_a_configuration_error() -> None:

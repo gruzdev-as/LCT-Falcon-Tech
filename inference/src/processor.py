@@ -13,9 +13,7 @@ from common.src.exceptions import NotFoundError, ValidationError
 from common.src.qdrant import client as qdrant
 from common.src.storage import client as storage
 from inference.src.models.base import Embedder
-from inference.src.pipeline.crop import crop_vehicle
 from inference.src.pipeline.postprocess import l2_normalize, rank_candidates
-from inference.src.pipeline.preprocess import preprocess
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +54,7 @@ class Processor:
 
     def _embed(self, data: bytes, bbox: BBox) -> np.ndarray:
         """Crop, preprocess and embed in one blocking call, run in a worker thread."""
-        crop = preprocess(crop_vehicle(data, bbox), self.embedder.input_size)
-        vector = l2_normalize(self.embedder.embed(crop))
+        vector = l2_normalize(self.embedder.embed(data, bbox))
         if vector.shape != (self.embedder.dim,):
             msg = f"embedder returned shape {vector.shape}, expected ({self.embedder.dim},)"
             raise RuntimeError(msg)

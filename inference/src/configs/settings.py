@@ -1,9 +1,11 @@
-import tempfile
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from inference.src.configs.constants import HEARTBEAT_PATH, WEIGHTS_PATH
 
 
 class InferenceSettings(BaseSettings):
@@ -12,8 +14,13 @@ class InferenceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="INFERENCE_", extra="ignore")
 
     embedder: str = Field(default="stub", description="Embedding backend, see models.factory")
-    embedding_dim: int = Field(default=512, gt=0)
+    embedding_dim: int = Field(default=512, gt=0, description="Only for the stub; a real model reports its own")
     reject_threshold: float = Field(default=0.5, ge=0, le=1, description="Score below this yields a rejected result")
+
+    weights_path: Path = Field(default=WEIGHTS_PATH, description="Serving checkpoint of the ReID model")
+    device: Literal["auto", "cpu", "cuda", "mps"] = Field(default="auto", description="auto: cuda if present, else cpu")
+    compile: bool = Field(default=False, description="torch.compile the model; honoured on cuda only")
+    torch_threads: int = Field(default=0, ge=0, description="CPU threads per replica; 0 leaves torch's default")
 
     # 0 would mean "block forever" to Redis and make the worker deaf to shutdown.
     # Must stay below REDIS_SOCKET_TIMEOUT, see common.src.redis.config.
@@ -23,10 +30,7 @@ class InferenceSettings(BaseSettings):
     claim_interval_s: float = Field(default=15.0, ge=0, description="How often to look for abandoned tasks")
     max_deliveries: int = Field(default=3, ge=1, description="Attempts before a task is failed as poison")
 
-    heartbeat_path: Path = Field(
-        default=Path(tempfile.gettempdir()) / "inference.alive",
-        description="Touched after every healthy iteration; the container healthcheck reads its mtime",
-    )
+    heartbeat_path: Path = Field(default=HEARTBEAT_PATH, description="Touched after every healthy iteration")
 
 
 @lru_cache
