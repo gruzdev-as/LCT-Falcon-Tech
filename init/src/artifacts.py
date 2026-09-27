@@ -1,16 +1,18 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 
-from init.src.configs.constants import DOWNLOAD_TIMEOUT_S, IMAGES_DIR
+from init.src.configs.constants import DOWNLOAD_TIMEOUT_S, HF_HOSTS, IMAGES_DIR
 from init.src.configs.settings import InitSettings
 from init.src.fetch import fetch, filename_from_url, unpack
 
 logger = logging.getLogger(__name__)
 
 MODEL = "model"
+CATBOOST = "catboost"
 IMAGES = "images"
 VECTORS = "vectors"
 
@@ -38,6 +40,13 @@ def registry(settings: InitSettings) -> list[Artifact]:
             name=MODEL,
             url=settings.model_url,
             sha256=settings.model_sha256,
+            target_dir=settings.weights_dir,
+            extract=False,
+        ),
+        Artifact(
+            name=CATBOOST,
+            url=settings.catboost_url,
+            sha256=settings.catboost_sha256,
             target_dir=settings.weights_dir,
             extract=False,
         ),
@@ -79,6 +88,7 @@ async def _fetch_one(client: httpx.AsyncClient, artifact: Artifact, settings: In
             destination=artifact.target_dir / filename_from_url(artifact.url),
             expected=artifact.sha256,
             force=settings.force,
+            headers=_auth_headers(artifact.url, settings),
             client=client,
         )
         return
@@ -90,9 +100,23 @@ async def _fetch_one(client: httpx.AsyncClient, artifact: Artifact, settings: In
         return
 
     archive = settings.artifacts_dir / ".downloads" / filename_from_url(artifact.url)
-    await fetch(url=artifact.url, destination=archive, expected=artifact.sha256, client=client)
+    await fetch(
+        url=artifact.url,
+        destination=archive,
+        expected=artifact.sha256,
+        headers=_auth_headers(artifact.url, settings),
+        client=client,
+    )
     await unpack(archive, artifact.target_dir)
     archive.unlink(missing_ok=True)
+
+
+def _auth_headers(url: str, settings: InitSettings) -> dict[str, str]:
+    """Attach the HF token, but only to Hugging Face; httpx drops it on the redirect to the CDN."""
+    token = settings.hf_token.get_secret_value().strip()
+    if not token or urlparse(url).hostname not in HF_HOSTS:
+        return {}
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _looks_unpacked(target: Path) -> bool:

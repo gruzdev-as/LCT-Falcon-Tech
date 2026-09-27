@@ -19,6 +19,8 @@ BBOX_COLUMNS: Final[tuple[str, ...]] = ("bbox_x", "bbox_y", "bbox_width", "bbox_
 PART_SUFFIX: Final[str] = ".part"
 DOWNLOAD_CHUNK_BYTES: Final[int] = 1024 * 1024
 DOWNLOAD_TIMEOUT_S: Final[float] = 600.0
+# The HF token is sent only to these hosts, never to wherever the other links point.
+HF_HOSTS: Final[frozenset[str]] = frozenset({"huggingface.co", "hf.co"})
 
 ### Qdrant point ids (kinda weird TODO fix in the future if i have the time)
 

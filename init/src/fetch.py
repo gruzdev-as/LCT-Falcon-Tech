@@ -27,6 +27,7 @@ async def fetch(
     *,
     expected: str = "",
     force: bool = False,
+    headers: dict[str, str] | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> bool:
     """Download one file unless it is already here.
@@ -36,6 +37,7 @@ async def fetch(
         destination: final path of the file.
         expected: sha256 the download must match; empty skips verification.
         force: download even when the file is already there.
+        headers: extra request headers, e.g. authorization.
         client: HTTP client to reuse; one is created when omitted.
 
     Returns:
@@ -56,7 +58,7 @@ async def fetch(
     owns_client = client is None
     client = client or httpx.AsyncClient(timeout=DOWNLOAD_TIMEOUT_S, follow_redirects=True)
     try:
-        digest = await _stream_to_file(client, url, part)
+        digest = await _stream_to_file(client, url, part, headers)
     finally:
         if owns_client:
             await client.aclose()
@@ -71,11 +73,11 @@ async def fetch(
     return True
 
 
-async def _stream_to_file(client: httpx.AsyncClient, url: str, part: Path) -> str:
+async def _stream_to_file(client: httpx.AsyncClient, url: str, part: Path, headers: dict[str, str] | None) -> str:
     """Stream a response into a file, digesting it on the way."""
     digest = hashlib.sha256()
     try:
-        async with client.stream("GET", url) as response:
+        async with client.stream("GET", url, headers=headers) as response:
             response.raise_for_status()
             with part.open("wb") as handle:
                 async for chunk in response.aiter_bytes(DOWNLOAD_CHUNK_BYTES):

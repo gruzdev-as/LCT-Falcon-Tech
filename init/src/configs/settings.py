@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,10 +15,14 @@ class InitSettings(BaseSettings):
 
     model_url: str = Field(default="", description="Direct link to the model weights; empty disables the artifact")
     model_sha256: str = Field(default="", description="Expected sha256; empty skips verification")
+    catboost_url: str = Field(default="", description="Direct link to the CatBoost head on top of the embeddings")
+    catboost_sha256: str = Field(default="")
     images_url: str = Field(default="", description="Direct link to the gallery images archive")
     images_sha256: str = Field(default="")
     vectors_url: str = Field(default="", description="Direct link to the embeddings bundle archive")
     vectors_sha256: str = Field(default="")
+
+    hf_token: SecretStr = Field(default=SecretStr(""), description="Read token for gated Hugging Face repos")
 
     force: bool = Field(default=False, description="Redownload and rebuild instead of skipping what is present")
 

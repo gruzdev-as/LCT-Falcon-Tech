@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from init.src import artifacts as artifacts_module
-from init.src.artifacts import IMAGES, MODEL, VECTORS, fetch_all, registry
+from init.src.artifacts import CATBOOST, IMAGES, MODEL, VECTORS, fetch_all, registry
 from init.src.configs.settings import InitSettings
 
 WEIGHTS = b"pretend-these-are-weights"
@@ -15,8 +15,8 @@ def settings_for(tmp_path: Path, **overrides) -> InitSettings:
     return InitSettings(artifacts_dir=tmp_path / "gallery", weights_dir=tmp_path / "weights", **overrides)
 
 
-def test_registry_lists_the_three_artifacts(tmp_path: Path) -> None:
-    assert [artifact.name for artifact in registry(settings_for(tmp_path))] == [MODEL, IMAGES, VECTORS]
+def test_registry_lists_every_artifact(tmp_path: Path) -> None:
+    assert [artifact.name for artifact in registry(settings_for(tmp_path))] == [MODEL, CATBOOST, IMAGES, VECTORS]
 
 
 def test_an_artifact_without_a_link_is_disabled(tmp_path: Path) -> None:
@@ -29,6 +29,7 @@ def test_weights_are_kept_as_a_file_and_the_rest_unpacked(tmp_path: Path) -> Non
     artifacts = {item.name: item for item in registry(settings_for(tmp_path))}
 
     assert not artifacts[MODEL].extract
+    assert not artifacts[CATBOOST].extract
     assert artifacts[IMAGES].extract
     assert artifacts[VECTORS].extract
 
@@ -47,6 +48,30 @@ async def test_fetching_weights_lands_them_in_the_weights_directory(
 
     assert (tmp_path / "weights" / "eva02.pt").read_bytes() == WEIGHTS
     assert served["hits"] == 1
+
+
+async def test_the_catboost_head_lands_next_to_the_weights(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _serve_bytes(monkeypatch, WEIGHTS)
+
+    await fetch_all(settings_for(tmp_path, catboost_url="https://example.test/eva02_catboost.cbm"))
+
+    assert (tmp_path / "weights" / "eva02_catboost.cbm").read_bytes() == WEIGHTS
+
+
+async def test_the_hf_token_goes_only_to_hugging_face(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A token for a gated repo must not leak to whoever hosts the other artifacts."""
+    served = _serve_bytes(monkeypatch, WEIGHTS)
+
+    await fetch_all(
+        settings_for(
+            tmp_path,
+            hf_token="hf_secret",  # noqa: S106  # a fake token for the test
+            model_url="https://huggingface.co/org/repo/resolve/main/eva02.pt",
+            catboost_url="https://example.test/eva02_catboost.cbm",
+        )
+    )
+
+    assert served["auth"] == ["Bearer hf_secret", None]
 
 
 async def test_a_second_run_downloads_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -110,12 +135,13 @@ async def test_force_refetches_and_unpacks_an_archive(tmp_path: Path, monkeypatc
     assert served["hits"] == 2
 
 
-def _serve_bytes(monkeypatch: pytest.MonkeyPatch, body: bytes) -> dict[str, int]:
+def _serve_bytes(monkeypatch: pytest.MonkeyPatch, body: bytes) -> dict:
     """Replace the HTTP transport with one serving fixed bytes; counts downloads."""
-    counter = {"hits": 0}
+    counter = {"hits": 0, "auth": []}
 
-    def handler(_request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx.Request) -> httpx.Response:
         counter["hits"] += 1
+        counter["auth"].append(request.headers.get("authorization"))
         return httpx.Response(200, content=body)
 
     original = httpx.AsyncClient
