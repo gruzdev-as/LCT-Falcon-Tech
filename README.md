@@ -102,23 +102,7 @@ docker run --gpus all --network none \
 
 ### Компоненты
 
-```mermaid
-flowchart TD
-    UI[frontend<br/>React + nginx] -->|"/api/v1"| API[backend<br/>FastAPI]
-    API -->|оригинал| S3[(RustFS / S3)]
-    API -->|XADD EmbeddingTask| R[(Redis Streams)]
-    API -->|история поисков| PG[(Postgres)]
-    API -->|GET result:id| R
-    R -->|consumer group| W[inference ×N<br/>EVA02 + CatBoost]
-    W -->|читает оригинал| S3
-    W -->|top-k| Q[(Qdrant)]
-    W -->|SET result:id| R
-    INIT[init<br/>одноразовый] -->|галерея| S3
-    INIT -->|gallery_images| PG
-    INIT -->|GalleryTask| R
-    INIT -->|веса| WV["data/weights"]
-    WV --> W
-```
+![Архитектура сервиса](docs/images/architecture.jpg)
 
 | Сервис | Роль |
 | --- | --- |
