@@ -1,11 +1,13 @@
+import hashlib
 import io
 import uuid
 from collections.abc import Awaitable, Callable
 
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from common.src.configs.schemas import BBox, EmbeddingTask
+from common.src.exceptions import ValidationError
 
 DIM = 16
 BOX = BBox(x=10, y=10, width=64, height=48)
@@ -24,3 +26,31 @@ def make_image(seed: int, size: tuple[int, int] = (128, 96), image_format: str =
 
 def make_task(image_path: str = "queries/q.png", bbox: BBox = BOX, top_k: int = 5) -> EmbeddingTask:
     return EmbeddingTask(task_id=uuid.uuid4().hex, image_path=image_path, bbox=bbox, top_k=top_k)
+
+
+class FakeEmbedder:
+    """Stands in for the ReID model: the pixels of the crop seed a random vector.
+
+    Identical crops embed identically and different ones nearly orthogonally, which is
+    all the pipeline needs to be tested without torch weights.
+    """
+
+    name = "fake"
+    version = "fake"
+
+    def __init__(self, dim: int = DIM) -> None:
+        self.dim = dim
+
+    def embed(self, data: bytes, bbox: BBox) -> np.ndarray:
+        """Crop by the box and hash the pixels, failing the way the real model does."""
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                image.load()
+                crop = image.crop(bbox.clamp(*image.size).to_xyxy())
+        except (UnidentifiedImageError, OSError) as exc:
+            msg = "stored image cannot be decoded"
+            raise ValidationError(msg) from exc
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        seed = int.from_bytes(hashlib.sha256(crop.tobytes()).digest()[:8], "little")
+        return np.random.default_rng(seed).standard_normal(self.dim).astype(np.float32)

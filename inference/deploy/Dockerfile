@@ -18,8 +18,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Always the full group: the embedder is picked at runtime by INFERENCE_EMBEDDER, and an
-# image without torch would only fail there. The stub runs in this image too.
 # The training package is a path dependency, so its sources must be here before the sync.
 COPY pyproject.toml uv.lock ./
 COPY training/ ./training/

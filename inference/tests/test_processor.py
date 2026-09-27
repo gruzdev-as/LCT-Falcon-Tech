@@ -3,13 +3,12 @@ from qdrant_client import AsyncQdrantClient
 
 from common.src.configs.schemas import TaskStatus
 from inference.src.models.refusal import CosineRefusal
-from inference.src.models.stub import StubEmbedder
 from inference.src.processor import Processor
-from inference.tests.helpers import GalleryAdd, make_image, make_task
+from inference.tests.helpers import FakeEmbedder, GalleryAdd, make_image, make_task
 
 
 @pytest.fixture
-def processor(embedder: StubEmbedder, qdrant: AsyncQdrantClient, objects: dict[str, bytes]) -> Processor:
+def processor(embedder: FakeEmbedder, qdrant: AsyncQdrantClient, objects: dict[str, bytes]) -> Processor:
     return Processor(embedder=embedder, refusal=CosineRefusal(0.5))
 
 
@@ -27,7 +26,7 @@ async def test_finds_the_same_vehicle(processor: Processor, objects: dict[str, b
     assert result.candidates[0].image_id == match_id
     assert result.candidates[0].vehicle_id == "car-1"
     assert result.candidates[0].image_url.startswith("http://s3.test/gallery/")
-    assert result.model_name == "stub"
+    assert result.model_name == "fake"
 
 
 async def test_rejects_when_nothing_is_close(
@@ -97,7 +96,7 @@ class _RecordingRefusal:
 
 
 async def test_the_refusal_sees_its_neighbours_with_vectors(
-    embedder: StubEmbedder, objects: dict[str, bytes], gallery_add: GalleryAdd
+    embedder: FakeEmbedder, objects: dict[str, bytes], gallery_add: GalleryAdd
 ) -> None:
     """The head needs more neighbours than a top-1 caller asks for, and their vectors."""
     for seed in range(5):
@@ -113,7 +112,7 @@ async def test_the_refusal_sees_its_neighbours_with_vectors(
 
 
 async def test_a_refused_query_answers_rejected_with_its_top_score(
-    embedder: StubEmbedder, objects: dict[str, bytes], gallery_add: GalleryAdd
+    embedder: FakeEmbedder, objects: dict[str, bytes], gallery_add: GalleryAdd
 ) -> None:
     image = make_image(1)
     await gallery_add(image)

@@ -180,12 +180,10 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
       S3_BUCKET: ${S3_BUCKET:-falcon-images}
-      INFERENCE_EMBEDDER: ${INFERENCE_EMBEDDER:-eva02}
       INFERENCE_WEIGHTS_PATH: ${INFERENCE_WEIGHTS_PATH:-/weights/eva02.pt}
       INFERENCE_DEVICE: ${INFERENCE_DEVICE:-auto}
       INFERENCE_COMPILE: ${INFERENCE_COMPILE:-false}
       INFERENCE_TORCH_THREADS: ${INFERENCE_TORCH_THREADS:-0}
-      INFERENCE_EMBEDDING_DIM: ${INFERENCE_EMBEDDING_DIM:-512}
       # Relative to /app: the preset ships in the image with the training submodule
       INFERENCE_REFUSAL_CONFIG: ${INFERENCE_REFUSAL_CONFIG:-training/configs/refusal/eva02_ensemble.yaml}
       INFERENCE_REFUSAL_MODEL_PATH: ${INFERENCE_REFUSAL_MODEL_PATH:-/weights/eva02_catboost.cbm}

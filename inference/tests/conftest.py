@@ -12,14 +12,13 @@ from common.src.exceptions import NotFoundError
 from common.src.qdrant import client as qdrant_module
 from common.src.redis import client as redis_module
 from common.src.storage import client as storage_module
-from inference.src.models.stub import StubEmbedder
 from inference.src.pipeline.postprocess import l2_normalize
-from inference.tests.helpers import BOX, DIM, GalleryAdd, Submit, make_task
+from inference.tests.helpers import BOX, DIM, FakeEmbedder, GalleryAdd, Submit, make_task
 
 
 @pytest.fixture
-def embedder() -> StubEmbedder:
-    return StubEmbedder(dim=DIM, input_size=(32, 32))
+def embedder() -> FakeEmbedder:
+    return FakeEmbedder(dim=DIM)
 
 
 @pytest.fixture
@@ -56,7 +55,7 @@ def objects(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
 
 
 @pytest.fixture
-def gallery_add(qdrant: AsyncQdrantClient, embedder: StubEmbedder) -> GalleryAdd:
+def gallery_add(qdrant: AsyncQdrantClient, embedder: FakeEmbedder) -> GalleryAdd:
     """Index an image the way gallery ingestion will: same crop, same model."""
 
     async def add(data: bytes, bbox: BBox = BOX, **payload: str) -> str:

@@ -11,10 +11,9 @@ from common.src.redis.client import read_one
 from inference.src.configs.constants import POISON_ERROR
 from inference.src.configs.settings import InferenceSettings
 from inference.src.models.refusal import CosineRefusal
-from inference.src.models.stub import StubEmbedder
 from inference.src.processor import Processor
 from inference.src.worker import InferenceWorker
-from inference.tests.helpers import Submit, make_image
+from inference.tests.helpers import FakeEmbedder, Submit, make_image
 
 
 def _settings(tmp_path: Path, **overrides: object) -> InferenceSettings:
@@ -28,13 +27,13 @@ def _settings(tmp_path: Path, **overrides: object) -> InferenceSettings:
     return InferenceSettings(**(base | overrides))
 
 
-def _worker(embedder: StubEmbedder, settings: InferenceSettings, consumer: str = "live") -> InferenceWorker:
+def _worker(embedder: FakeEmbedder, settings: InferenceSettings, consumer: str = "live") -> InferenceWorker:
     return InferenceWorker(Processor(embedder, CosineRefusal(0.5)), settings, consumer=consumer)
 
 
 @pytest.fixture
 async def worker(
-    embedder: StubEmbedder, qdrant: AsyncQdrantClient, redis: fakeredis.FakeAsyncRedis, tmp_path: Path
+    embedder: FakeEmbedder, qdrant: AsyncQdrantClient, redis: fakeredis.FakeAsyncRedis, tmp_path: Path
 ) -> InferenceWorker:
     instance = _worker(embedder, _settings(tmp_path))
     await instance.start()
@@ -119,7 +118,7 @@ async def test_picks_up_the_task_of_a_dead_replica(
 
 
 async def test_fails_a_task_that_keeps_killing_workers(
-    embedder: StubEmbedder,
+    embedder: FakeEmbedder,
     qdrant: AsyncQdrantClient,
     submit: Submit,
     redis: fakeredis.FakeAsyncRedis,
@@ -139,7 +138,7 @@ async def test_fails_a_task_that_keeps_killing_workers(
 
 
 async def test_scaled_out_workers_split_the_stream(
-    embedder: StubEmbedder,
+    embedder: FakeEmbedder,
     qdrant: AsyncQdrantClient,
     submit: Submit,
     redis: fakeredis.FakeAsyncRedis,
@@ -171,7 +170,7 @@ async def test_takes_one_task_per_iteration(
 
 
 async def test_drains_abandoned_tasks_before_waiting_for_the_interval(
-    embedder: StubEmbedder,
+    embedder: FakeEmbedder,
     qdrant: AsyncQdrantClient,
     submit: Submit,
     redis: fakeredis.FakeAsyncRedis,
