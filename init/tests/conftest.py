@@ -1,31 +1,41 @@
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, AsyncIterator, Generator
 from pathlib import Path
 
+import fakeredis
 import pytest
 from qdrant_client import AsyncQdrantClient
 
 from common.src.qdrant import client as qdrant_module
+from common.src.redis import client as redis_module
 from common.src.storage import client as storage_module
-from init.src.bundle import Bundle, load_bundle
-from init.tests.helpers import write_bundle
+from init.src.gallery import Gallery, load_gallery
+from init.tests.helpers import write_gallery
 
 
 @pytest.fixture
-def bundle(tmp_path: Path) -> Bundle:
-    """A small, valid bundle on disk."""
-    return load_bundle(write_bundle(tmp_path / "artifacts", count=6))
+def gallery(tmp_path: Path) -> Gallery:
+    """A small, valid gallery on disk."""
+    return load_gallery(write_gallery(tmp_path / "gallery", count=6))
 
 
 @pytest.fixture
 async def qdrant_client(monkeypatch: pytest.MonkeyPatch) -> AsyncGenerator[AsyncQdrantClient]:
     """In-memory Qdrant, shared with the module-level client the steps use.
 
-    Left empty on purpose: creating the collection is the bootstrap's job.
+    Left empty on purpose: the workers create the collection, sized by their model.
     """
     client = AsyncQdrantClient(location=":memory:")
     monkeypatch.setattr(qdrant_module, "_qdrant", client)
     yield client
     await client.close()
+
+
+@pytest.fixture
+async def redis(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[fakeredis.FakeAsyncRedis]:
+    client = fakeredis.FakeAsyncRedis(server=fakeredis.FakeServer(), decode_responses=True)
+    monkeypatch.setattr(redis_module, "_redis", client)
+    yield client
+    await client.aclose()
 
 
 @pytest.fixture

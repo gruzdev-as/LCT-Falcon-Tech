@@ -1,5 +1,4 @@
 import hashlib
-import tarfile
 from pathlib import Path
 
 import httpx
@@ -7,7 +6,7 @@ import pytest
 
 from common.src.exceptions import StorageError
 from init.src.configs.constants import PART_SUFFIX
-from init.src.fetch import fetch, unpack
+from init.src.fetch import fetch
 
 PAYLOAD = b"gallery-artifact-bytes"
 DIGEST = hashlib.sha256(PAYLOAD).hexdigest()
@@ -84,36 +83,3 @@ async def test_an_interrupted_transfer_does_not_look_complete(tmp_path: Path) ->
 
     assert not destination.exists()
     assert not destination.with_name(destination.name + PART_SUFFIX).exists()
-
-
-async def test_unpack_detects_the_format_by_content_not_extension(tmp_path: Path) -> None:
-    """Publishers name archives whatever they like; the bytes decide."""
-    source = tmp_path / "payload.txt"
-    source.write_text("hello")
-    archive = tmp_path / "gallery.bin"
-    with tarfile.open(archive, "w:gz") as bundle:
-        bundle.add(source, arcname="payload.txt")
-
-    await unpack(archive, tmp_path / "out")
-
-    assert (tmp_path / "out" / "payload.txt").read_text() == "hello"
-
-
-async def test_unpack_names_the_problem_for_an_unreadable_format(tmp_path: Path) -> None:
-    """A .tar.zst would sail past an extension check and fail deep inside tarfile."""
-    archive = tmp_path / "gallery.tar.zst"
-    archive.write_bytes(b"\x28\xb5\x2f\xfd not really zstd either")
-
-    with pytest.raises(StorageError, match="not a zip or a tar"):
-        await unpack(archive, tmp_path / "out")
-
-
-async def test_unpack_refuses_an_entry_that_escapes(tmp_path: Path) -> None:
-    archive = tmp_path / "evil.tar"
-    victim = tmp_path / "payload"
-    victim.write_bytes(b"x")
-    with tarfile.open(archive, "w") as bundle:
-        bundle.add(victim, arcname="../escaped")
-
-    with pytest.raises(StorageError, match="escapes the destination"):
-        await unpack(archive, tmp_path / "out")

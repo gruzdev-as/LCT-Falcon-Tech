@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from common.src.db.base import Base
 from common.src.db.models import GalleryImage
-from init.src.bundle import Bundle
+from init.src.gallery import Gallery
 from init.src.steps.images import object_key
 from init.src.steps.metadata import count_rows, sync_gallery
 
@@ -40,37 +40,37 @@ async def session() -> AsyncGenerator[AsyncSession]:
     await engine.dispose()
 
 
-async def test_writes_every_manifest_row(session: AsyncSession, bundle: Bundle) -> None:
-    written = await sync_gallery(session, bundle)
+async def test_writes_every_manifest_row(session: AsyncSession, gallery: Gallery) -> None:
+    written = await sync_gallery(session, gallery)
     await session.commit()
 
-    assert written == bundle.count
-    assert await count_rows(session, bundle.version) == bundle.count
+    assert written == gallery.count
+    assert await count_rows(session, gallery.version) == gallery.count
 
 
-async def test_a_second_run_writes_nothing(session: AsyncSession, bundle: Bundle) -> None:
-    await sync_gallery(session, bundle)
+async def test_a_second_run_writes_nothing(session: AsyncSession, gallery: Gallery) -> None:
+    await sync_gallery(session, gallery)
     await session.commit()
 
-    assert await sync_gallery(session, bundle) == 0
+    assert await sync_gallery(session, gallery) == 0
 
 
-async def test_rerunning_refreshes_instead_of_failing(session: AsyncSession, bundle: Bundle) -> None:
+async def test_rerunning_refreshes_instead_of_failing(session: AsyncSession, gallery: Gallery) -> None:
     """Same primary keys on every run: an insert-only step would break on the second."""
-    await sync_gallery(session, bundle)
+    await sync_gallery(session, gallery)
     await session.commit()
 
-    await sync_gallery(session, bundle, force=True)
+    await sync_gallery(session, gallery, force=True)
     await session.commit()
 
-    assert await count_rows(session, bundle.version) == bundle.count
+    assert await count_rows(session, gallery.version) == gallery.count
 
 
-async def test_stores_the_object_key_not_the_manifest_path(session: AsyncSession, bundle: Bundle) -> None:
-    await sync_gallery(session, bundle)
+async def test_stores_the_object_key_not_the_manifest_path(session: AsyncSession, gallery: Gallery) -> None:
+    await sync_gallery(session, gallery)
     await session.commit()
 
-    entry = bundle.entries[0]
+    entry = gallery.entries[0]
     row = await session.scalar(select(GalleryImage).where(GalleryImage.image_id == entry.image_id))
 
     assert row is not None

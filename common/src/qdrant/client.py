@@ -61,14 +61,6 @@ async def ensure_collection(name: str, dim: int) -> None:
         raise StorageError(msg, details={"collection": name, "expected": dim, "actual": size})
 
 
-async def recreate_collection(name: str, dim: int) -> None:
-    """Drop the collection and build it empty again."""
-    client = get_qdrant()
-    await client.delete_collection(name)
-    await client.create_collection(name, vectors_config=VectorParams(size=dim, distance=Distance.COSINE))
-    logger.info("Recreated Qdrant collection %s (dim=%d)", name, dim)
-
-
 async def count_points(collection: str, *, where: tuple[str, str] | None = None) -> int:
     """Return how many points the collection holds, or 0 if it does not exist.
 
